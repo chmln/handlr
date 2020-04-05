@@ -1,0 +1,17 @@
+section_char = { XID_CONTINUE | " " }
+name_char = {XID_CONTINUE | PUNCTUATION | "/" | "+" | "." | "-" | "%" | " "  | "[" | "]" }
+value_char = { PUNCTUATION | FORMAT | NUMBER | MARK | GRAPHEME_BASE}
+
+section = { "[" ~ (section_char)+  ~ "]" }
+
+property = { name ~ "=" ~ value }
+name = { name_char+ }
+value = { value_char+ }
+
+comment = { "#" ~ name_char* }
+
+file = {
+    SOI ~
+    ((section | property | comment)? ~ NEWLINE)* ~
+    EOI
+}
