@@ -1,27 +1,45 @@
 use anyhow::Result;
+use structopt::StructOpt;
 
 mod common;
 mod mimeapps;
-mod systemapps;
 
-pub use common::{DesktopEntry, Mime};
+pub use common::{DesktopEntry, Handler, Mime};
+
+#[derive(StructOpt)]
+enum Options {
+    List,
+    Open { path: String },
+    Get { mime: Mime },
+    Set { mime: Mime, handler: Handler },
+}
 
 fn main() -> Result<()> {
-    let mut args: Vec<_> = std::env::args().collect();
-    let user = mimeapps::MimeApps::read()?;
-    let sys = systemapps::SystemApps::populate()?;
+    let cmd = Options::from_args();
 
-    let mime = Mime(args.remove(1));
+    let mut user = mimeapps::MimeApps::read()?;
 
-    let user_handler = user.get_handler(&mime);
-    match user_handler {
-        Some(h) => {
-            dbg!(&h);
+    match cmd {
+        Options::Set { mime, handler } => {
+            user.set_handler(mime, handler)?;
         }
-        None => {
-            let s = sys.get_handlers(&mime);
-            dbg!(&s);
+        Options::Get { mime } => {
+            println!("{}", user.get_handler(&mime)?);
         }
+        Options::Open { path } => match url::Url::parse(&path) {
+            Ok(url) => {
+                let mime = Mime(format!("x-scheme-handler/{}", url.scheme()));
+                user.get_handler(&mime)?.run(&path)?;
+            }
+            Err(_) => {
+                let guess = mime_guess::from_path(&path)
+                    .first_raw()
+                    .ok_or_else(|| anyhow::Error::msg("Could not determine mime type"))?;
+                user.get_handler(&Mime(guess.to_owned()))?.run(&path)?;
+            }
+        },
+        _ => {}
     };
+
     Ok(())
 }

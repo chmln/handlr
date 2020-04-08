@@ -1,62 +1,55 @@
-use crate::{DesktopEntry, Mime};
+use crate::{DesktopEntry, Handler, Mime};
 use anyhow::Result;
+use dashmap::DashMap;
 use pest::Parser;
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 use std::path::PathBuf;
 
-#[derive(Debug, pest_derive::Parser, Default)]
+#[derive(Debug, pest_derive::Parser)]
 #[grammar = "ini.pest"]
 pub struct MimeApps {
-    added_associations: HashMap<Mime, Vec<PathBuf>>,
-    default_apps: HashMap<Mime, Vec<PathBuf>>,
-}
-
-fn handler_exists(name: &str) -> Option<std::path::PathBuf> {
-    let locally = {
-        let mut local_dir = dirs::data_dir().unwrap();
-        local_dir.push("applications");
-        local_dir.push(name);
-        Some(local_dir).filter(|p| p.exists())
-    };
-    let system = {
-        let mut sys = std::path::PathBuf::from("/usr/share/applications");
-        sys.push(name);
-        Some(sys).filter(|p| p.exists())
-    };
-    locally.or(system)
+    added_associations: HashMap<Mime, VecDeque<Handler>>,
+    default_apps: HashMap<Mime, VecDeque<Handler>>,
+    system_apps: SystemApps,
 }
 
 impl MimeApps {
-    pub fn get_handler(&self, mime: &Mime) -> Option<DesktopEntry> {
-        use std::convert::TryFrom;
-
-        Some(
-            self.default_apps
-                .get(mime)
-                .or_else(|| self.added_associations.get(mime))
-                .map(|hs| hs.get(0).unwrap().clone())
-                .map(DesktopEntry::try_from)
-                .map(Result::ok)
-                .flatten()?
-                .clone(),
-        )
+    pub fn set_handler(&mut self, mime: Mime, handler: Handler) -> Result<()> {
+        let handlers = self.default_apps.entry(mime).or_default();
+        handlers.push_front(handler);
+        self.print()?;
+        Ok(())
     }
-    pub fn read() -> Result<Self> {
-        let path = dirs::config_dir()
+    pub fn get_handler(&self, mime: &Mime) -> Result<Handler> {
+        Ok(self
+            .default_apps
+            .get(mime)
+            .or_else(|| self.added_associations.get(mime))
+            .map(|hs| hs.get(0).unwrap().clone())
+            .or_else(|| self.system_apps.get_handler(mime))
+            .ok_or(anyhow::Error::msg("No handlers found"))?)
+    }
+    pub fn path() -> Result<PathBuf> {
+        dirs::config_dir()
             .map(|mut data_dir| {
                 data_dir.push("mimeapps.list");
                 data_dir
             })
-            .ok_or_else(|| anyhow::Error::msg("Could not determine xdg data dir"))?;
-
-        let raw_conf = std::fs::read_to_string(path)?;
+            .ok_or_else(|| anyhow::Error::msg("Could not determine xdg data dir"))
+    }
+    pub fn read() -> Result<Self> {
+        let raw_conf = std::fs::read_to_string(Self::path()?)?;
         let file = Self::parse(Rule::file, &raw_conf)
             .expect("unsuccessful parse") // unwrap the parse result
             .next()
             .unwrap();
 
         let mut current_section_name = "".to_string();
-        let mut conf = Self::default();
+        let mut conf = Self {
+            added_associations: HashMap::default(),
+            default_apps: HashMap::default(),
+            system_apps: SystemApps::populate()?,
+        };
 
         file.into_inner().for_each(|line| {
             match line.as_rule() {
@@ -67,23 +60,29 @@ impl MimeApps {
                     let mut inner_rules = line.into_inner(); // { name ~ "=" ~ value }
 
                     let name = inner_rules.next().unwrap().as_str();
-                    let mut handlers = inner_rules
-                        .next()
-                        .unwrap()
-                        .as_str()
-                        .split(";")
-                        .filter_map(handler_exists)
-                        .collect::<Vec<_>>();
-                    handlers.pop();
+                    let handlers = {
+                        use itertools::Itertools;
+                        use std::str::FromStr;
+
+                        inner_rules
+                            .next()
+                            .unwrap()
+                            .as_str()
+                            .split(";")
+                            .filter(|s| !s.is_empty())
+                            .unique()
+                            .filter_map(|s| Handler::from_str(s).ok())
+                            .collect::<VecDeque<_>>()
+                    };
 
                     if !handlers.is_empty() {
                         match current_section_name.as_str() {
                             "Added Associations" => conf
                                 .added_associations
-                                .insert(Mime(name.to_owned()), handlers.to_owned()),
-                            "Default Applications" => conf
-                                .default_apps
-                                .insert(Mime(name.to_owned()), handlers.to_owned()),
+                                .insert(Mime(name.to_owned()), handlers),
+                            "Default Applications" => {
+                                conf.default_apps.insert(Mime(name.to_owned()), handlers)
+                            }
                             _ => None,
                         };
                     }
@@ -93,5 +92,72 @@ impl MimeApps {
         });
 
         Ok(conf)
+    }
+    pub fn print(&self) -> Result<()> {
+        use itertools::Itertools;
+        use std::io::{prelude::*, BufWriter};
+
+        let f = std::fs::OpenOptions::new()
+            .read(true)
+            .write(true)
+            .truncate(true)
+            .open(Self::path()?)?;
+        let mut writer = BufWriter::new(f);
+
+        writer.write_all(b"[Added Associations]\n")?;
+        for (k, v) in self.added_associations.iter().sorted() {
+            writer.write_all(k.0.as_ref())?;
+            writer.write_all(b"=")?;
+            writer.write_all(v.iter().join(";").as_ref())?;
+            writer.write_all(b";\n")?;
+        }
+
+        writer.write_all(b"\n[Default Applications]\n")?;
+        for (k, v) in self.default_apps.iter().sorted() {
+            writer.write_all(k.0.as_ref())?;
+            writer.write_all(b"=")?;
+            writer.write_all(v.iter().join(";").as_ref())?;
+            writer.write_all(b";\n")?;
+        }
+
+        writer.flush()?;
+        Ok(())
+    }
+}
+
+#[derive(Debug)]
+pub struct SystemApps(pub DashMap<Mime, Vec<Handler>>);
+
+impl SystemApps {
+    pub fn get_handlers(&self, mime: &Mime) -> Option<Vec<Handler>> {
+        Some(self.0.get(mime)?.value().clone())
+    }
+    pub fn get_handler(&self, mime: &Mime) -> Option<Handler> {
+        Some(self.get_handlers(mime)?.get(0).unwrap().clone())
+    }
+    pub fn populate() -> Result<Self> {
+        use rayon::iter::ParallelBridge;
+        use rayon::prelude::ParallelIterator;
+        use std::convert::TryFrom;
+
+        let map = DashMap::<Mime, Vec<Handler>>::with_capacity(50);
+
+        std::fs::read_dir("/usr/share/applications")?
+            .par_bridge()
+            .filter_map(|path| {
+                path.ok()
+                    .map(|p| DesktopEntry::try_from(p.path()).ok())
+                    .flatten()
+            })
+            .for_each(|entry| {
+                let (file_name, mimes) = (entry.file_name, entry.mimes);
+                mimes.into_iter().for_each(|mime| {
+                    map.entry(mime)
+                        .or_default()
+                        .push(Handler::assume_valid(file_name.clone()));
+                });
+            });
+
+        Ok(Self(map))
     }
 }
