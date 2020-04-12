@@ -1,44 +1,61 @@
-use anyhow::Result;
+use error::{Error, Result};
 use structopt::StructOpt;
 
 mod common;
+mod error;
 mod mimeapps;
 
 pub use common::{DesktopEntry, Handler, Mime};
 
 #[derive(StructOpt)]
-enum Options {
+enum Cmd {
     List,
-    Open { path: String },
-    Get { mime: Mime },
-    Set { mime: Mime, handler: Handler },
+    Open {
+        path: String,
+    },
+    Get {
+        #[structopt(long)]
+        json: bool,
+        mime: Mime,
+    },
+    Launch {
+        mime: Mime,
+        args: Vec<String>,
+    },
+    Set {
+        mime: Mime,
+        handler: Handler,
+    },
 }
 
 fn main() -> Result<()> {
-    let cmd = Options::from_args();
+    let mut apps = mimeapps::MimeApps::read()?;
 
-    let mut user = mimeapps::MimeApps::read()?;
-
-    match cmd {
-        Options::Set { mime, handler } => {
-            user.set_handler(mime, handler)?;
+    match Cmd::from_args() {
+        Cmd::Set { mime, handler } => {
+            apps.set_handler(mime, handler)?;
         }
-        Options::Get { mime } => {
-            println!("{}", user.get_handler(&mime)?);
+        Cmd::Launch { mime, args } => {
+            apps.get_handler(&mime)?.launch(args)?;
         }
-        Options::Open { path } => match url::Url::parse(&path) {
+        Cmd::Get { mime, json } => {
+            apps.show_handler(&mime, json)?;
+        }
+        Cmd::Open { path } => match url::Url::parse(&path) {
             Ok(url) => {
                 let mime = Mime(format!("x-scheme-handler/{}", url.scheme()));
-                user.get_handler(&mime)?.run(&path)?;
+                apps.get_handler(&mime)?.open(path)?;
             }
             Err(_) => {
                 let guess = mime_guess::from_path(&path)
                     .first_raw()
-                    .ok_or_else(|| anyhow::Error::msg("Could not determine mime type"))?;
-                user.get_handler(&Mime(guess.to_owned()))?.run(&path)?;
+                    .ok_or(Error::Ambiguous)?;
+                apps.get_handler(&Mime(guess.to_owned()))?.open(path)?;
             }
         },
-        _ => {}
+        Cmd::List => {
+            apps.print()?;
+        }
     };
 
     Ok(())

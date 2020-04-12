@@ -1,4 +1,4 @@
-use anyhow::Result;
+use crate::{Error, Result};
 use pest::Parser;
 use std::convert::TryFrom;
 use std::path::PathBuf;
@@ -12,11 +12,13 @@ impl std::str::FromStr for Mime {
         Ok(Self(s.to_owned()))
     }
 }
-#[derive(Debug, derive_more::Display, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(
+    Debug, derive_more::Display, Clone, Hash, PartialEq, Eq, PartialOrd, Ord,
+)]
 pub struct Handler(String);
 
 impl std::str::FromStr for Handler {
-    type Err = anyhow::Error;
+    type Err = Error;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         Self::resolve(s.to_owned())
     }
@@ -41,18 +43,28 @@ impl Handler {
         locally.or(system)
     }
     pub fn resolve(name: String) -> Result<Self> {
-        let path =
-            Self::get_path(&name).ok_or_else(|| anyhow::Error::msg("Handler does not exist"))?;
+        let path = Self::get_path(&name).ok_or(Error::NotFound)?;
         DesktopEntry::try_from(path)?;
         Ok(Self(name))
     }
     pub fn get_entry(&self) -> Result<DesktopEntry> {
         DesktopEntry::try_from(Self::get_path(&self.0).unwrap())
     }
-    pub fn run(&self, arg: &str) -> Result<()> {
-        std::process::Command::new("gtk-launch")
-            .args(&[self.0.as_str(), arg])
+    pub fn open(&self, arg: String) -> Result<()> {
+        let (cmd, args) = self.get_entry()?.get_cmd(Some(arg))?;
+        std::process::Command::new(cmd)
+            .args(args)
             .stdout(std::process::Stdio::null())
+            .spawn()?;
+        Ok(())
+    }
+    pub fn launch(&self, args: Vec<String>) -> Result<()> {
+        let (cmd, mut base_args) = self.get_entry()?.get_cmd(None)?;
+        base_args.extend_from_slice(&args);
+        std::process::Command::new(cmd)
+            .args(base_args)
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
             .spawn()?;
         Ok(())
     }
@@ -67,8 +79,22 @@ pub struct DesktopEntry {
     pub(crate) mimes: Vec<Mime>,
 }
 
+impl DesktopEntry {
+    pub fn get_cmd(
+        &self,
+        arg: Option<String>,
+    ) -> Result<(String, Vec<String>)> {
+        let arg = arg.unwrap_or_default();
+        let arg = shlex::quote(&arg);
+        let replaced = self.exec.replace("%f", &arg).replace("%U", &arg);
+
+        let mut split = shlex::split(&replaced).ok_or(Error::BadCmd)?;
+        Ok((split.remove(0), split))
+    }
+}
+
 impl TryFrom<PathBuf> for DesktopEntry {
-    type Error = anyhow::Error;
+    type Error = Error;
     fn try_from(p: PathBuf) -> Result<DesktopEntry> {
         let raw = std::fs::read_to_string(&p)?;
         let file = Self::parse(Rule::file, &raw)?.next().unwrap();
@@ -84,10 +110,12 @@ impl TryFrom<PathBuf> for DesktopEntry {
                     let name = inner_rules.next().unwrap().as_str();
                     match name {
                         "Name" => {
-                            entry.name = inner_rules.next().unwrap().as_str().into();
+                            entry.name =
+                                inner_rules.next().unwrap().as_str().into();
                         }
                         "Exec" => {
-                            entry.exec = inner_rules.next().unwrap().as_str().into();
+                            entry.exec =
+                                inner_rules.next().unwrap().as_str().into();
                         }
                         "MimeType" => {
                             let mut mimes = inner_rules
@@ -111,7 +139,7 @@ impl TryFrom<PathBuf> for DesktopEntry {
         if !entry.name.is_empty() && !entry.exec.is_empty() {
             Ok(entry)
         } else {
-            Err(anyhow::Error::msg("Invalid desktop entry"))
+            Err(Error::BadCmd)
         }
     }
 }

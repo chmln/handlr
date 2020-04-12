@@ -1,9 +1,10 @@
-use crate::{DesktopEntry, Handler, Mime};
-use anyhow::Result;
+use crate::{DesktopEntry, Error, Handler, Mime, Result};
 use dashmap::DashMap;
 use pest::Parser;
-use std::collections::{HashMap, VecDeque};
-use std::path::PathBuf;
+use std::{
+    collections::{HashMap, VecDeque},
+    path::PathBuf,
+};
 
 #[derive(Debug, pest_derive::Parser)]
 #[grammar = "ini.pest"]
@@ -17,25 +18,40 @@ impl MimeApps {
     pub fn set_handler(&mut self, mime: Mime, handler: Handler) -> Result<()> {
         let handlers = self.default_apps.entry(mime).or_default();
         handlers.push_front(handler);
-        self.print()?;
+        self.save()?;
         Ok(())
     }
     pub fn get_handler(&self, mime: &Mime) -> Result<Handler> {
-        Ok(self
-            .default_apps
+        self.default_apps
             .get(mime)
             .or_else(|| self.added_associations.get(mime))
             .map(|hs| hs.get(0).unwrap().clone())
             .or_else(|| self.system_apps.get_handler(mime))
-            .ok_or(anyhow::Error::msg("No handlers found"))?)
+            .ok_or(Error::NotFound)
+    }
+    pub fn show_handler(&self, mime: &Mime, output_json: bool) -> Result<()> {
+        let handler = self.get_handler(mime)?;
+        let output = if output_json {
+            let entry = handler.get_entry()?;
+            (json::object! {
+                handler: handler.to_string(),
+                name: entry.name.as_str(),
+                cmd: entry.get_cmd(None)?.0
+            })
+            .to_string()
+        } else {
+            handler.to_string()
+        };
+        println!("{}", output);
+        Ok(())
     }
     pub fn path() -> Result<PathBuf> {
         dirs::config_dir()
-            .map(|mut data_dir| {
-                data_dir.push("mimeapps.list");
-                data_dir
+            .map(|mut config_dir| {
+                config_dir.push("mimeapps.list");
+                config_dir
             })
-            .ok_or_else(|| anyhow::Error::msg("Could not determine xdg data dir"))
+            .ok_or(Error::NoConfigDir)
     }
     pub fn read() -> Result<Self> {
         let raw_conf = std::fs::read_to_string(Self::path()?)?;
@@ -80,9 +96,9 @@ impl MimeApps {
                             "Added Associations" => conf
                                 .added_associations
                                 .insert(Mime(name.to_owned()), handlers),
-                            "Default Applications" => {
-                                conf.default_apps.insert(Mime(name.to_owned()), handlers)
-                            }
+                            "Default Applications" => conf
+                                .default_apps
+                                .insert(Mime(name.to_owned()), handlers),
                             _ => None,
                         };
                     }
@@ -93,7 +109,7 @@ impl MimeApps {
 
         Ok(conf)
     }
-    pub fn print(&self) -> Result<()> {
+    pub fn save(&self) -> Result<()> {
         use itertools::Itertools;
         use std::io::{prelude::*, BufWriter};
 
@@ -121,6 +137,20 @@ impl MimeApps {
         }
 
         writer.flush()?;
+        Ok(())
+    }
+    pub fn print(&self) -> Result<()> {
+        use itertools::Itertools;
+
+        let rows = self
+            .default_apps
+            .iter()
+            .sorted()
+            .map(|(k, v)| vec![k.0.clone(), v.iter().join(", ")])
+            .collect::<Vec<_>>();
+
+        ascii_table::AsciiTable::default().print(rows);
+
         Ok(())
     }
 }
