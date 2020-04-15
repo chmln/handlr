@@ -26,6 +26,9 @@ enum Cmd {
         mime: Mime,
         handler: Handler,
     },
+    Unset {
+        mime: Mime
+    }
 }
 
 fn main() -> Result<()> {
@@ -55,6 +58,9 @@ fn main() -> Result<()> {
         },
         Cmd::List => {
             apps.print()?;
+        },
+        Cmd::Unset { mime } => {
+            apps.remove_handler(&mime)?;
         }
     };
 

@@ -21,6 +21,13 @@ impl MimeApps {
         self.save()?;
         Ok(())
     }
+    pub fn remove_handler(&mut self, mime: &Mime) -> Result<()> {
+        if let Some(_removed) = self.default_apps.remove(mime) {
+            self.save()?;
+        }
+
+        Ok(())
+    }
     pub fn get_handler(&self, mime: &Mime) -> Result<Handler> {
         self.default_apps
             .get(mime)
