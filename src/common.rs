@@ -30,7 +30,7 @@ impl Handler {
     }
     pub fn get_path(name: &str) -> Option<PathBuf> {
         let locally = {
-            let mut local_dir = dirs::data_dir().unwrap();
+            let mut local_dir = dirs::data_dir()?;
             local_dir.push("applications");
             local_dir.push(name);
             Some(local_dir).filter(|p| p.exists())
@@ -86,7 +86,11 @@ impl DesktopEntry {
     ) -> Result<(String, Vec<String>)> {
         let arg = arg.unwrap_or_default();
         let arg = shlex::quote(&arg);
-        let replaced = self.exec.replace("%f", &arg).replace("%U", &arg);
+        let replaced = self
+            .exec
+            .replace("%f", &arg)
+            .replace("%U", &arg)
+            .replace("%F", &arg);
 
         let mut split = shlex::split(&replaced).ok_or(Error::BadCmd)?;
         Ok((split.remove(0), split))
