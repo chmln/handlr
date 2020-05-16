@@ -12,10 +12,14 @@ impl std::str::FromStr for Mime {
         Ok(Self(s.to_owned()))
     }
 }
-#[derive(
-    Debug, derive_more::Display, Clone, Hash, PartialEq, Eq, PartialOrd, Ord,
-)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Handler(String);
+
+impl std::fmt::Display for Handler {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.0)
+    }
+}
 
 impl std::str::FromStr for Handler {
     type Err = Error;
