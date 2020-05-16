@@ -13,7 +13,7 @@ Manage your default applications with ease using `handlr`!
 ### Compared to `xdg-open` and `xdg-mime`:
 - Can operate on extensions, **no need to look up or remember mime types**
   - useful for common tasks like setting a handler for png/docx/etc files
-- Superb autocomplete experience, including mimes, extensions, and `.desktop` files
+- Superb autocomplete (currently just fish), including mimes, extensions, and `.desktop` files
 - Optional json output for commands like `get`
 
 
