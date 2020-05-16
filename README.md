@@ -3,13 +3,15 @@
 Manage your default applications with ease using `handlr`!
 
 ### Features
+
 - Set default handler by extension or mime-type
 - Open path/url with default handler (like xdg-open)
 - List default associations
 - Automatically removes invalid/wrong `.desktop` entries
+- Simply a great command-line experience
 
 ### Compared to `xdg-open` and `xdg-mime`:
-- Can operate on extensions, no need to look up or remember mime types
+- Can operate on extensions, **no need to look up or remember mime types**
   - useful for common tasks like setting a handler for png/docx/etc files
 - Superb autocomplete experience, including mimes, extensions, and `.desktop` files
 - Optional json output for commands like `get`
