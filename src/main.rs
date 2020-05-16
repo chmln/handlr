@@ -1,6 +1,7 @@
 use error::{Error, Result};
 use structopt::StructOpt;
 
+mod autocomplete;
 mod common;
 mod error;
 mod mimeapps;
@@ -23,11 +24,23 @@ enum Cmd {
         args: Vec<String>,
     },
     Set {
-        mime: Mime,
+        #[structopt(long, short)]
+        mime: Option<Mime>,
+        #[structopt(long, short)]
+        ext: Option<String>,
         handler: Handler,
     },
     Unset {
         mime: Mime,
+    },
+    #[structopt(setting = structopt::clap::AppSettings::Hidden)]
+    Autocomplete {
+        #[structopt(short)]
+        desktop_files: bool,
+        #[structopt(short)]
+        mimes: bool,
+        #[structopt(short)]
+        extensions: bool,
     },
 }
 
@@ -35,7 +48,16 @@ fn main() -> Result<()> {
     let mut apps = mimeapps::MimeApps::read()?;
 
     match Cmd::from_args() {
-        Cmd::Set { mime, handler } => {
+        Cmd::Set { mime, ext, handler } => {
+            let mime = match ext {
+                Some(extension) => mime_guess::from_ext(&extension)
+                    .first_raw()
+                    .map(ToOwned::to_owned)
+                    .map(Mime)
+                    .ok_or(Error::Ambiguous)?,
+                None => mime.ok_or(Error::MissingMimeOrExt)?,
+            };
+
             apps.set_handler(mime, handler)?;
         }
         Cmd::Launch { mime, args } => {
@@ -47,13 +69,14 @@ fn main() -> Result<()> {
         Cmd::Open { path } => match url::Url::parse(&path) {
             Ok(url) => {
                 let mime = Mime(format!("x-scheme-handler/{}", url.scheme()));
+
                 apps.get_handler(&mime)?.open(path)?;
             }
             Err(_) => {
                 let guess = mime_guess::from_path(&path)
-                    .first_raw()
-                    .ok_or(Error::Ambiguous)?;
-                apps.get_handler(&Mime(guess.to_owned()))?.open(path)?;
+                    .first_or_text_plain()
+                    .to_string();
+                apps.get_handler(&Mime(guess))?.open(path)?;
             }
         },
         Cmd::List => {
@@ -61,6 +84,19 @@ fn main() -> Result<()> {
         }
         Cmd::Unset { mime } => {
             apps.remove_handler(&mime)?;
+        }
+        Cmd::Autocomplete {
+            desktop_files,
+            mimes,
+            extensions,
+        } => {
+            if desktop_files {
+                apps.list_handlers()?;
+            } else if mimes {
+                autocomplete::mimes()?;
+            } else if extensions {
+                autocomplete::extensions()?;
+            }
         }
     };
 

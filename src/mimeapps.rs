@@ -160,6 +160,32 @@ impl MimeApps {
 
         Ok(())
     }
+    pub fn list_handlers(&self) -> Result<()> {
+        // use rayon::iter::ParallelBridge;
+        // use rayon::prelude::ParallelIterator;
+        use std::convert::TryFrom;
+        use std::io::Write;
+
+        let stdout = std::io::stdout();
+        let mut stdout = stdout.lock();
+
+        std::fs::read_dir("/usr/share/applications")?
+            .chain(std::fs::read_dir({
+                let mut dir = dirs::data_dir().ok_or(Error::NoConfigDir)?;
+                dir.push("applications");
+                dir
+            })?)
+            .filter_map(Result::ok)
+            .filter_map(|p| DesktopEntry::try_from(p.path()).ok())
+            .for_each(|e| {
+                stdout.write_all(e.file_name.as_bytes()).unwrap();
+                stdout.write_all(b"\t").unwrap();
+                stdout.write_all(e.name.as_bytes()).unwrap();
+                stdout.write_all(b"\n").unwrap();
+            });
+
+        Ok(())
+    }
 }
 
 #[derive(Debug)]

@@ -4,14 +4,16 @@ pub enum Error {
     Parse(#[from] pest::error::Error<crate::common::Rule>),
     #[error(transparent)]
     Io(#[from] std::io::Error),
-    #[error("handler not found")]
+    #[error("no handler defined for this mime/extension")]
     NotFound,
-    #[error("Invalid desktop entry")]
+    #[error("badly-formatted desktop entry")]
     BadCmd,
-    #[error("Could not find config dir")]
+    #[error("could not locate config dir")]
     NoConfigDir,
-    #[error("could not guess mime type")]
+    #[error("could not figure out the mime from extension. please provide the mime type directly")]
     Ambiguous,
+    #[error("either mime (via -m) or extension (via -e) must be provided")]
+    MissingMimeOrExt,
 }
 
 pub type Result<T, E = Error> = std::result::Result<T, E>;
