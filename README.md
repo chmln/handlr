@@ -38,6 +38,7 @@ handlr launch x-scheme-handler/https -- https://google.ca
 ```
 
 ## Compared to `xdg-utils`
+- Far easier to use with simple commands like `get`, `set`, `list`
 - Can operate on extensions, **no need to look up or remember mime types**
   - useful for common tasks like setting a handler for png/docx/etc files
 - Superb autocomplete (currently just fish), including mimes, extensions, and `.desktop` files
