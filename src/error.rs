@@ -10,7 +10,7 @@ pub enum Error {
     BadCmd,
     #[error("could not locate config dir")]
     NoConfigDir,
-    #[error("could not figure out the mime from extension. please provide the mime type directly")]
+    #[error("could not figure out the mime type")]
     Ambiguous,
     #[error("either mime (via -m) or extension (via -e) must be provided")]
     MissingMimeOrExt,

@@ -69,14 +69,19 @@ fn main() -> Result<()> {
         Cmd::Open { path } => match url::Url::parse(&path) {
             Ok(url) => {
                 let mime = Mime(format!("x-scheme-handler/{}", url.scheme()));
-
                 apps.get_handler(&mime)?.open(path)?;
             }
             Err(_) => {
-                let guess = mime_guess::from_path(&path)
-                    .first_or_text_plain()
-                    .to_string();
-                apps.get_handler(&Mime(guess))?.open(path)?;
+                let mime = match mime_guess::from_path(&path).first_raw() {
+                    Some(mime) => mime,
+                    None if std::fs::metadata(&path)?.is_dir() => {
+                        "inode/directory"
+                    }
+                    _ => {
+                        return Err(Error::Ambiguous);
+                    }
+                };
+                apps.get_handler(&Mime(mime.to_owned()))?.open(path)?;
             }
         },
         Cmd::List => {
