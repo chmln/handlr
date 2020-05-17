@@ -5,17 +5,43 @@ Manage your default applications with ease using `handlr`!
 ## Features
 
 - Set default handler by extension or mime-type
-- Open path/url with default handler (like xdg-open)
+- Intelligent mime type detection from files based on extension and content
+- Mime-type validation against a massive database
 - List default associations
 - Automatically removes invalid/wrong `.desktop` entries from `mimeapps.list`
-- Simply a great command-line experience
+- Helper commands like `launch`, `get --json` for your scripting needs
+- Unnecessarily fast (written in Rust)
+- Single compiled binary with no dependencies
 
-## Compared to `xdg-open` and `xdg-mime`
+## Usage
+
+```sh
+# Open a file/URL
+handlr open ~/.dotfiles/pacman/packages.txt
+handlr open https://google.ca
+
+# Set default handler for png files
+handlr set .png feh.desktop
+
+# Set default handler based on mime
+handlr set application/pdf evince.desktop
+
+# List default apps
+handlr list
+
+# Get the handler for a mime/extension
+$ handlr get .png
+feh.desktop
+
+# Launch a handler with given path/URL
+handlr launch x-scheme-handler/https -- https://google.ca
+```
+
+## Compared to `xdg-utils`
 - Can operate on extensions, **no need to look up or remember mime types**
   - useful for common tasks like setting a handler for png/docx/etc files
 - Superb autocomplete (currently just fish), including mimes, extensions, and `.desktop` files
 - Optional json output for commands like `get`
-
 
 ## Screenshots
 
@@ -37,5 +63,5 @@ Alternatively, you can install with `cargo`:
 cargo install handlr
 ```
 
-#### Icon Attribution
+## Icon Attribution
 Icons made by <a href="https://www.flaticon.com/authors/eucalyp" title="Eucalyp">Eucalyp</a> from <a href="https://www.flaticon.com/" title="Flaticon"> www.flaticon.com</a>
