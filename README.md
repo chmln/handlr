@@ -2,8 +2,6 @@
 
 Manage your default applications with ease using `handlr`!
 
-`handlr` is especially useful for window managers like i3 and bspwm that don't have DE-specific utils like `gvfs-open`, `kde-open`, etc.
-
 ## Features
 
 - Set default handler by extension or mime-type
