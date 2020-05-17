@@ -54,7 +54,13 @@ handlr launch x-scheme-handler/https -- https://google.ca
 
 ## Installation
 
-Just download the latest [release binary](https://github.com/chmln/handlr/releases).
+While packages for distributions are pending,
+
+1. Download the latest [release binary](https://github.com/chmln/handlr/releases) and put it somewhere in `$PATH`
+2. Download completions:
+```sh
+curl https://raw.githubusercontent.com/chmln/handlr/master/completions/handlr.fish --create-dirs -o ~/.config/fish/completions/handlr.fish
+```
 
 ---
 
