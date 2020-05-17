@@ -20,9 +20,9 @@ Manage your default applications with ease using `handlr`!
 ### Screenshots
 
 <table><tr><td>
-<img src=https://user-images.githubusercontent.com/11352152/82114001-f1889400-9727-11ea-8792-801041acd3f3.png width=500>
+<img src=https://user-images.githubusercontent.com/11352152/82158910-dc5f5280-9858-11ea-9acf-afa9807ba80d.png width=500>
 </td><td>
-<img width=450 src=https://user-images.githubusercontent.com/11352152/82113897-45df4400-9727-11ea-8f9b-ec0973178b9c.png>
+<img width=450 src=https://user-images.githubusercontent.com/11352152/82158912-dcf7e900-9858-11ea-811e-a16221e5ea9f.png>
 </td></tr></table>
 
 ### Attr
