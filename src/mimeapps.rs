@@ -196,13 +196,11 @@ impl SystemApps {
         Some(self.get_handlers(mime)?.get(0).unwrap().clone())
     }
     pub fn populate() -> Result<Self> {
-        use rayon::{iter::ParallelBridge, prelude::ParallelIterator};
         use std::convert::TryFrom;
 
         let map = DashMap::<Mime, Vec<Handler>>::with_capacity(50);
 
         std::fs::read_dir("/usr/share/applications")?
-            .par_bridge()
             .filter_map(|path| {
                 path.ok()
                     .map(|p| DesktopEntry::try_from(p.path()).ok())
