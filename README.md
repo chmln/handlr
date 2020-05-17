@@ -10,7 +10,7 @@ Manage your default applications with ease using `handlr`!
 - Automatically removes invalid/wrong `.desktop` entries from `mimeapps.list`
 - Simply a great command-line experience
 
-## Compared to `xdg-open` and `xdg-mime`:
+## Compared to `xdg-open` and `xdg-mime`
 - Can operate on extensions, **no need to look up or remember mime types**
   - useful for common tasks like setting a handler for png/docx/etc files
 - Superb autocomplete (currently just fish), including mimes, extensions, and `.desktop` files
