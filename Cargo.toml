@@ -1,10 +1,10 @@
 [package]
 name = "handlr"
-version = "0.2.0"
+version = "0.1.0"
 authors = ["greg <gregory.mkv@gmail.com>"]
 edition = "2018"
 license = "MIT"
-descrption = "Manage mimeapps.list and default applications with ease"
+description = "Manage mimeapps.list and default applications with ease"
 
 [dependencies]
 dirs = "2.0.2"
