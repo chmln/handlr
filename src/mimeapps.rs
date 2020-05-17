@@ -161,10 +161,7 @@ impl MimeApps {
         Ok(())
     }
     pub fn list_handlers(&self) -> Result<()> {
-        // use rayon::iter::ParallelBridge;
-        // use rayon::prelude::ParallelIterator;
-        use std::convert::TryFrom;
-        use std::io::Write;
+        use std::{convert::TryFrom, io::Write};
 
         let stdout = std::io::stdout();
         let mut stdout = stdout.lock();
@@ -199,8 +196,7 @@ impl SystemApps {
         Some(self.get_handlers(mime)?.get(0).unwrap().clone())
     }
     pub fn populate() -> Result<Self> {
-        use rayon::iter::ParallelBridge;
-        use rayon::prelude::ParallelIterator;
+        use rayon::{iter::ParallelBridge, prelude::ParallelIterator};
         use std::convert::TryFrom;
 
         let map = DashMap::<Mime, Vec<Handler>>::with_capacity(50);

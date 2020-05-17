@@ -1,4 +1,4 @@
-section_char = { XID_CONTINUE | " " }
+section_char = { XID_CONTINUE | " " | "-" }
 name_char = {XID_CONTINUE | PUNCTUATION | "/" | "+" | "." | "-" | "%" | " "  | "[" | "]" }
 value_char = { PUNCTUATION | FORMAT | NUMBER | MARK | GRAPHEME_BASE}
 

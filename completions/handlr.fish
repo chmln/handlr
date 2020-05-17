@@ -10,19 +10,14 @@ function __handlr_autocomplete
   end
 
   function _set
-    complete -f -c handlr -n '__fish_seen_subcommand_from set' -s "em" 
-    complete -f -c handlr -n '__fish_seen_subcommand_from set; __fish_prev_arg_in set' -a '-e -m'
-
-    complete -f -c handlr -n '__fish_seen_subcommand_from set; __fish_prev_arg_in "-e"' -a "(handlr autocomplete -e)"
-    complete -f -c handlr -n '__fish_seen_subcommand_from set; __fish_prev_arg_in "-m"' -a '(handlr autocomplete -m)'
-
-    complete -f -c handlr -n '__fish_seen_subcommand_from set; set -l last (commandline -pco)[-2]; [ "$last" = "-e" ]' -a '(handlr autocomplete -d)' -d "desc1 desc2"
-    complete -f -c handlr -n '__fish_seen_subcommand_from set; set -l last (commandline -pco)[-2]; [ "$last" = "-m" ]' -a '(handlr autocomplete -d)'
+    complete -f -c handlr -n '__fish_seen_subcommand_from set; __fish_prev_arg_in "set"' -a '(handlr autocomplete -m)'
+    complete -f -c handlr -n '__fish_seen_subcommand_from set; set -l last (commandline -pco)[-2]; [ "$last" = "set" ]' -a '(handlr autocomplete -d)'
   end
 
   subcommands
   _set
-  complete -f -c handlr -n '__fish_seen_subcommand_from get' -l 'json' -a '(handlr autocomplete -m)'
+  complete -f -c handlr -n '__fish_seen_subcommand_from get' -a '(handlr autocomplete -m)'
+  complete -f -c handlr -n '__fish_seen_subcommand_from get' -l 'json'
   complete -f -c handlr -n '__fish_seen_subcommand_from unset' -a '(handlr autocomplete -m)'
   complete -f -c handlr -n '__fish_seen_subcommand_from launch; __fish_prev_arg_in launch' -a '(handlr autocomplete -m)'
 

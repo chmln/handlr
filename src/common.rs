@@ -1,17 +1,52 @@
-use crate::{Error, Result};
+use crate::{mime_types, Error, Result};
 use pest::Parser;
-use std::convert::TryFrom;
-use std::path::PathBuf;
+use std::{convert::TryFrom, fs, path::PathBuf};
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Mime(pub String);
 
-impl std::str::FromStr for Mime {
-    type Err = std::convert::Infallible;
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Ok(Self(s.to_owned()))
+impl Mime {
+    pub fn try_from_path(path: &str) -> Result<Self> {
+        if let Ok(url) = url::Url::parse(path) {
+            return Ok(Mime(format!("x-scheme-handler/{}", url.scheme())));
+        }
+
+        let path = PathBuf::from(path);
+        let mime = match path.extension().map(|e| e.to_str()).flatten() {
+            Some(extension) => {
+                mime_types::lookup_extension(extension)?.to_owned()
+            }
+
+            None => {
+                use mime_sniffer::MimeTypeSniffer;
+
+                if fs::metadata(&path)?.is_dir() {
+                    "inode/directory".to_owned()
+                } else if let Some(mime) = fs::read(path)?.sniff_mime_type() {
+                    mime.to_owned()
+                } else {
+                    return Err(Error::Ambiguous);
+                }
+            }
+        };
+
+        Ok(Mime(mime))
     }
 }
+
+impl std::str::FromStr for Mime {
+    type Err = Error;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let mime = if s.starts_with(".") {
+            mime_types::lookup_extension(&s[1..])?
+        } else {
+            mime_types::verify(&s)?
+        };
+
+        Ok(Self(mime.to_owned()))
+    }
+}
+
 #[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Handler(String);
 
@@ -107,17 +142,21 @@ impl TryFrom<PathBuf> for DesktopEntry {
         let raw = std::fs::read_to_string(&p)?;
         let file = Self::parse(Rule::file, &raw)?.next().unwrap();
 
+        let mut section: &str = Default::default();
         let mut entry = Self::default();
         entry.file_name = p.file_name().unwrap().to_str().unwrap().to_owned();
 
         for line in file.into_inner() {
             match line.as_rule() {
-                Rule::property => {
+                Rule::section => {
+                    section = line.into_inner().as_str();
+                }
+                Rule::property if section == "Desktop Entry" => {
                     let mut inner_rules = line.into_inner(); // { name ~ "=" ~ value }
 
                     let name = inner_rules.next().unwrap().as_str();
                     match name {
-                        "Name" => {
+                        "Name" if entry.name.is_empty() => {
                             entry.name =
                                 inner_rules.next().unwrap().as_str().into();
                         }

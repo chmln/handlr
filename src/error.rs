@@ -12,6 +12,10 @@ pub enum Error {
     NoConfigDir,
     #[error("could not figure out the mime type")]
     Ambiguous,
+    #[error("could not figure out the mime type from extension .{0}")]
+    UnknownExtension(String),
+    #[error("invalid mime {0}")]
+    BadMime(String),
     #[error("either mime (via -m) or extension (via -e) must be provided")]
     MissingMimeOrExt,
 }
