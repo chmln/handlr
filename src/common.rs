@@ -128,8 +128,9 @@ impl DesktopEntry {
         let replaced = self
             .exec
             .replace("%f", &arg)
-            .replace("%U", &arg)
-            .replace("%F", &arg);
+            .replace("%F", &arg)
+            .replace("%u", &arg)
+            .replace("%U", &arg);
 
         let mut split = shlex::split(&replaced).ok_or(Error::BadCmd)?;
         Ok((split.remove(0), split))
