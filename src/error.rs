@@ -18,6 +18,8 @@ pub enum Error {
     BadMime(String),
     #[error("either mime (via -m) or extension (via -e) must be provided")]
     MissingMimeOrExt,
+    #[error(transparent)]
+    Xdg(#[from] xdg::BaseDirectoriesError),
 }
 
 pub type Result<T, E = Error> = std::result::Result<T, E>;

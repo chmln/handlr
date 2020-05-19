@@ -68,18 +68,9 @@ impl Handler {
         Self(name)
     }
     pub fn get_path(name: &str) -> Option<PathBuf> {
-        let locally = {
-            let mut local_dir = dirs::data_dir()?;
-            local_dir.push("applications");
-            local_dir.push(name);
-            Some(local_dir).filter(|p| p.exists())
-        };
-        let system = {
-            let mut sys = std::path::PathBuf::from("/usr/share/applications");
-            sys.push(name);
-            Some(sys).filter(|p| p.exists())
-        };
-        locally.or(system)
+        xdg::BaseDirectories::new()
+            .ok()?
+            .find_data_file(&format!("applications/{}", name))
     }
     pub fn resolve(name: String) -> Result<Self> {
         let path = Self::get_path(&name).ok_or(Error::NotFound)?;
