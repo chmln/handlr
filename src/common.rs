@@ -114,16 +114,16 @@ impl DesktopEntry {
         &self,
         arg: Option<String>,
     ) -> Result<(String, Vec<String>)> {
-        let arg = arg.unwrap_or_default();
-        let arg = shlex::quote(&arg);
-        let replaced = self
-            .exec
-            .replace("%f", &arg)
-            .replace("%F", &arg)
-            .replace("%u", &arg)
-            .replace("%U", &arg);
+        let mut split = shlex::split(&self.exec)
+            .ok_or(Error::BadCmd)?
+            .into_iter()
+            .map(|s| match s.as_str() {
+                "%f" | "%F" | "%u" | "%U" => arg.clone(),
+                _ => Some(s),
+            })
+            .filter_map(std::convert::identity)
+            .collect::<Vec<_>>();
 
-        let mut split = shlex::split(&replaced).ok_or(Error::BadCmd)?;
         Ok((split.remove(0), split))
     }
 }
