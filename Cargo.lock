@@ -285,7 +285,7 @@ dependencies = [
 
 [[package]]
 name = "handlr"
-version = "0.2.1"
+version = "0.3.0"
 dependencies = [
  "ascii_table",
  "itertools",
