@@ -54,20 +54,30 @@ handlr launch x-scheme-handler/https -- https://google.ca
 
 ## Installation
 
-While packages for distributions are pending,
+### Arch Linux
+
+```sh
+yay -S handlr-bin
+```
+
+Optionally you can also install `xdg-utils-handlr` to replace `xdg-open`:
+
+```sh
+yay -S xdg-utils-handlr
+```
+
+### Rust/Cargo
+
+```sh
+cargo install handlr
+```
+
+### Binaries
 
 1. Download the latest [release binary](https://github.com/chmln/handlr/releases) and put it somewhere in `$PATH`
 2. Download completions:
 ```sh
 curl https://raw.githubusercontent.com/chmln/handlr/master/completions/handlr.fish --create-dirs -o ~/.config/fish/completions/handlr.fish
-```
-
----
-
-Alternatively, you can install with `cargo`:
-
-```sh
-cargo install handlr
 ```
 
 ## Attribution
