@@ -165,6 +165,9 @@ impl MimeApps {
         xdg::BaseDirectories::new()?
             .list_data_files_once("applications")
             .into_iter()
+            .filter(|p| {
+                p.extension().map(|x| x.to_str()).flatten() == Some("desktop")
+            })
             .filter_map(|p| DesktopEntry::try_from(p).ok())
             .for_each(|e| {
                 stdout.write_all(e.file_name.as_bytes()).unwrap();
@@ -201,19 +204,23 @@ impl SystemApps {
             })
             .filter_map(|data_dir| std::fs::read_dir(data_dir).ok())
             .for_each(|dir| {
-                dir.filter_map(|path| {
-                    path.ok()
-                        .map(|p| DesktopEntry::try_from(p.path()).ok())
-                        .flatten()
-                })
-                .for_each(|entry| {
-                    let (file_name, mimes) = (entry.file_name, entry.mimes);
-                    mimes.into_iter().for_each(|mime| {
-                        map.entry(mime)
-                            .or_default()
-                            .push(Handler::assume_valid(file_name.clone()));
+                dir.filter_map(Result::ok)
+                    .filter(|p| {
+                        p.path()
+                            .extension()
+                            .map(std::ffi::OsStr::to_str)
+                            .flatten()
+                            == Some("desktop")
+                    })
+                    .filter_map(|p| DesktopEntry::try_from(p.path()).ok())
+                    .for_each(|entry| {
+                        let (file_name, mimes) = (entry.file_name, entry.mimes);
+                        mimes.into_iter().for_each(|mime| {
+                            map.entry(mime)
+                                .or_default()
+                                .push(Handler::assume_valid(file_name.clone()));
+                        });
                     });
-                });
             });
 
         Ok(Self(map))
