@@ -1,4 +1,9 @@
-use crate::{Error, Result};
+use crate::{Error, Mime, Result};
+use once_cell::sync::Lazy;
+use std::path::Path;
+use xdg_mime::SharedMimeInfo;
+
+static SHARED_MIME_DB: Lazy<SharedMimeInfo> = Lazy::new(SharedMimeInfo::new);
 
 static CUSTOM_MIMES: &[&'static str] = &[
     "inode/directory",
@@ -6,8 +11,13 @@ static CUSTOM_MIMES: &[&'static str] = &[
     "x-scheme-handler/https",
 ];
 
-pub fn lookup_extension(ext: &str) -> Result<&str> {
-    mime_db::lookup(ext).ok_or(Error::UnknownExtension(ext.to_owned()))
+pub fn from_file<P: AsRef<Path>>(path: P) -> Result<Mime> {
+    let guess = SHARED_MIME_DB.guess_mime_type().path(path).guess();
+
+    match guess.mime_type().essence_str() {
+        "application/octet-stream" => Err(Error::Ambiguous),
+        mime => Ok(Mime(mime.to_owned())),
+    }
 }
 
 pub fn verify(mime: &str) -> Result<&str> {
