@@ -1,6 +1,5 @@
 use crate::{mime_types, Error, Result};
-use pest::Parser;
-use std::{convert::TryFrom, fs, path::PathBuf};
+use std::{convert::TryFrom, path::PathBuf};
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Mime(pub String);
@@ -11,39 +10,18 @@ impl Mime {
             return Ok(Mime(format!("x-scheme-handler/{}", url.scheme())));
         }
 
-        let path = PathBuf::from(path);
-        let mime = match path.extension().map(|e| e.to_str()).flatten() {
-            Some(extension) => {
-                mime_types::lookup_extension(extension)?.to_owned()
-            }
-
-            None => {
-                use mime_sniffer::MimeTypeSniffer;
-
-                if fs::metadata(&path)?.is_dir() {
-                    "inode/directory".to_owned()
-                } else if let Some(mime) = fs::read(path)?.sniff_mime_type() {
-                    mime.to_owned()
-                } else {
-                    return Err(Error::Ambiguous);
-                }
-            }
-        };
-
-        Ok(Mime(mime))
+        mime_types::from_file(path)
     }
 }
 
 impl std::str::FromStr for Mime {
     type Err = Error;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let mime = if s.starts_with(".") {
-            mime_types::lookup_extension(&s[1..])?
+        if s.starts_with(".") {
+            mime_types::from_file(s)
         } else {
-            mime_types::verify(&s)?
-        };
-
-        Ok(Self(mime.to_owned()))
+            Ok(Mime(mime_types::verify(&s)?.to_owned()))
+        }
     }
 }
 
@@ -114,11 +92,17 @@ impl DesktopEntry {
         &self,
         arg: Option<String>,
     ) -> Result<(String, Vec<String>)> {
+        let special = regex::Regex::new("%(f|F|u|U)").unwrap();
         let mut split = shlex::split(&self.exec)
             .ok_or(Error::BadCmd)?
             .into_iter()
             .map(|s| match s.as_str() {
                 "%f" | "%F" | "%u" | "%U" => arg.clone(),
+                s if special.is_match(s) => Some(
+                    special
+                        .replace_all(s, arg.as_deref().unwrap_or_default())
+                        .into(),
+                ),
                 _ => Some(s),
             })
             .filter_map(std::convert::identity)
@@ -131,6 +115,7 @@ impl DesktopEntry {
 impl TryFrom<PathBuf> for DesktopEntry {
     type Error = Error;
     fn try_from(p: PathBuf) -> Result<DesktopEntry> {
+        use pest::Parser;
         let raw = std::fs::read_to_string(&p)?;
         let file = Self::parse(Rule::file, &raw)?.next().unwrap();
 
