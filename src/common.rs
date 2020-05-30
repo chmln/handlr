@@ -60,20 +60,32 @@ impl Handler {
     }
     pub fn open(&self, arg: String) -> Result<()> {
         let (cmd, args) = self.get_entry()?.get_cmd(Some(arg))?;
-        std::process::Command::new(cmd)
-            .args(args)
-            .stdout(std::process::Stdio::null())
-            .spawn()?;
+        if self.get_entry()?.term {
+            std::process::Command::new(cmd)
+                .args(args)
+                .status()?;
+        } else {
+            std::process::Command::new(cmd)
+                .args(args)
+                .stdout(std::process::Stdio::null())
+                .spawn()?;
+        }
         Ok(())
     }
     pub fn launch(&self, args: Vec<String>) -> Result<()> {
         let (cmd, mut base_args) = self.get_entry()?.get_cmd(None)?;
         base_args.extend_from_slice(&args);
-        std::process::Command::new(cmd)
-            .args(base_args)
-            .stdout(std::process::Stdio::null())
-            .stderr(std::process::Stdio::null())
-            .spawn()?;
+        if self.get_entry()?.term {
+            std::process::Command::new(cmd)
+                .args(base_args)
+                .status()?;
+        } else {
+            std::process::Command::new(cmd)
+                .args(base_args)
+                .stdout(std::process::Stdio::null())
+                .stderr(std::process::Stdio::null())
+                .spawn()?;
+        }
         Ok(())
     }
 }
@@ -84,6 +96,7 @@ pub struct DesktopEntry {
     pub(crate) name: String,
     pub(crate) exec: String,
     pub(crate) file_name: String,
+    pub(crate) term: bool,
     pub(crate) mimes: Vec<Mime>,
 }
 
@@ -152,6 +165,12 @@ impl TryFrom<PathBuf> for DesktopEntry {
                                 .collect::<Vec<_>>();
                             mimes.pop();
                             entry.mimes = mimes;
+                        }
+                        "Terminal" => {
+                            entry.term = match inner_rules.next().unwrap().as_str() {
+                                "true" => true,
+                                _ => false,
+                            }
                         }
                         _ => {}
                     }
