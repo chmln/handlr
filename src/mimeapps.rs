@@ -14,9 +14,18 @@ pub struct MimeApps {
 }
 
 impl MimeApps {
-    pub fn set_handler(&mut self, mime: Mime, handler: Handler) -> Result<()> {
+    pub fn add_handler(&mut self, mime: Mime, handler: Handler) -> Result<()> {
         let handlers = self.default_apps.entry(mime).or_default();
-        handlers.push_front(handler);
+        handlers.push_back(handler);
+        self.save()?;
+        Ok(())
+    }
+    pub fn set_handler(&mut self, mime: Mime, handler: Handler) -> Result<()> {
+        self.default_apps.insert(mime, {
+            let mut handlers = VecDeque::with_capacity(1);
+            handlers.push_back(handler);
+            handlers
+        });
         self.save()?;
         Ok(())
     }

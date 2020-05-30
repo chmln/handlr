@@ -1,5 +1,5 @@
+use clap::Clap;
 use error::{Error, Result};
-use structopt::StructOpt;
 
 mod common;
 mod error;
@@ -8,20 +8,24 @@ mod mimeapps;
 
 pub use common::{DesktopEntry, Handler, Mime};
 
-#[derive(StructOpt)]
+#[derive(Clap)]
 enum Cmd {
     List,
     Open {
         path: String,
     },
     Get {
-        #[structopt(long)]
+        #[clap(long)]
         json: bool,
         mime: Mime,
     },
     Launch {
         mime: Mime,
         args: Vec<String>,
+    },
+    Add {
+        mime: Mime,
+        handler: Handler,
     },
     Set {
         mime: Mime,
@@ -30,11 +34,11 @@ enum Cmd {
     Unset {
         mime: Mime,
     },
-    #[structopt(setting = structopt::clap::AppSettings::Hidden)]
+    #[clap(setting = clap::AppSettings::Hidden)]
     Autocomplete {
-        #[structopt(short)]
+        #[clap(short)]
         desktop_files: bool,
-        #[structopt(short)]
+        #[clap(short)]
         mimes: bool,
     },
 }
@@ -42,9 +46,12 @@ enum Cmd {
 fn main() -> Result<()> {
     let mut apps = mimeapps::MimeApps::read()?;
 
-    match Cmd::from_args() {
+    match Cmd::parse() {
         Cmd::Set { mime, handler } => {
             apps.set_handler(mime, handler)?;
+        }
+        Cmd::Add { mime, handler } => {
+            apps.add_handler(mime, handler)?;
         }
         Cmd::Launch { mime, args } => {
             apps.get_handler(&mime)?.launch(args)?;
