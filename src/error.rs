@@ -8,6 +8,8 @@ pub enum Error {
     Notify(#[from] notify_rust::error::Error),
     #[error(transparent)]
     Xdg(#[from] xdg::BaseDirectoriesError),
+    #[error(transparent)]
+    Config(#[from] confy::ConfyError),
     #[error("no handler defined for this mime/extension")]
     NotFound(String),
     #[error("could not figure out the mime type .{0}")]

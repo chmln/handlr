@@ -1,4 +1,8 @@
-use crate::{apps::SystemApps, DesktopEntry, Error, Handler, Result};
+use crate::{
+    apps::SystemApps,
+    common::{DesktopEntry, Handler},
+    Error, Result,
+};
 use mime::Mime;
 use pest::Parser;
 use std::{
@@ -39,12 +43,28 @@ impl MimeApps {
         Ok(())
     }
     pub fn get_handler(&self, mime: &Mime) -> Result<Handler> {
-        self.default_apps
-            .get(mime)
-            .or_else(|| self.added_associations.get(mime))
-            .map(|hs| hs.get(0).unwrap().clone())
-            .or_else(|| self.system_apps.get_handler(mime))
-            .ok_or(Error::NotFound(mime.to_string()))
+        let config = crate::config::Config::load()?;
+
+        match self.default_apps.get(mime) {
+            Some(handlers) if config.enable_selector && handlers.len() > 1 => {
+                let handlers = handlers
+                    .into_iter()
+                    .map(|h| (h, h.get_entry().unwrap().name))
+                    .collect::<Vec<_>>();
+                let selected =
+                    config.select(handlers.iter().map(|h| h.1.clone()))?;
+                let selected =
+                    handlers.into_iter().find(|h| h.1 == selected).unwrap().0;
+                Ok(selected.clone())
+            }
+            Some(handlers) => Ok(handlers.get(0).unwrap().clone()),
+            None => self
+                .added_associations
+                .get(mime)
+                .map(|h| h.get(0).unwrap().clone())
+                .or_else(|| self.system_apps.get_handler(mime))
+                .ok_or(Error::NotFound(mime.to_string())),
+        }
     }
     pub fn show_handler(&self, mime: &Mime, output_json: bool) -> Result<()> {
         let handler = self.get_handler(mime)?;

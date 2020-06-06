@@ -24,6 +24,8 @@ mime-db = "0.1.5"
 xdg-mime = { git = "https://github.com/ebassi/xdg-mime-rs" }
 atty = "0.2.14"
 notify-rust = "4.0.0-rc.1"
+confy = "0.4.0"
+serde = "1.0.111"
 
 [profile.release]
 opt-level=3
