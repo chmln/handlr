@@ -1,12 +1,14 @@
-use crate::{DesktopEntry, Error, Handler, Mime, Result};
+use crate::{apps::SystemApps, DesktopEntry, Error, Handler, Result};
+use mime::Mime;
 use pest::Parser;
 use std::{
     collections::{HashMap, VecDeque},
     path::PathBuf,
+    str::FromStr,
 };
 
 #[derive(Debug, pest_derive::Parser)]
-#[grammar = "ini.pest"]
+#[grammar = "common/ini.pest"]
 pub struct MimeApps {
     added_associations: HashMap<Mime, VecDeque<Handler>>,
     default_apps: HashMap<Mime, VecDeque<Handler>>,
@@ -42,7 +44,7 @@ impl MimeApps {
             .or_else(|| self.added_associations.get(mime))
             .map(|hs| hs.get(0).unwrap().clone())
             .or_else(|| self.system_apps.get_handler(mime))
-            .ok_or(Error::NotFound)
+            .ok_or(Error::NotFound(mime.to_string()))
     }
     pub fn show_handler(&self, mime: &Mime, output_json: bool) -> Result<()> {
         let handler = self.get_handler(mime)?;
@@ -90,7 +92,6 @@ impl MimeApps {
                     let name = inner_rules.next().unwrap().as_str();
                     let handlers = {
                         use itertools::Itertools;
-                        use std::str::FromStr;
 
                         inner_rules
                             .next()
@@ -104,13 +105,17 @@ impl MimeApps {
                     };
 
                     if !handlers.is_empty() {
-                        match current_section_name.as_str() {
-                            "Added Associations" => conf
-                                .added_associations
-                                .insert(Mime(name.to_owned()), handlers),
-                            "Default Applications" => conf
-                                .default_apps
-                                .insert(Mime(name.to_owned()), handlers),
+                        match (
+                            Mime::from_str(name),
+                            current_section_name.as_str(),
+                        ) {
+                            (Ok(mime), "Added Associations") => {
+                                conf.added_associations.insert(mime, handlers)
+                            }
+
+                            (Ok(mime), "Default Applications") => {
+                                conf.default_apps.insert(mime, handlers)
+                            }
                             _ => None,
                         };
                     }
@@ -134,7 +139,7 @@ impl MimeApps {
 
         writer.write_all(b"[Added Associations]\n")?;
         for (k, v) in self.added_associations.iter().sorted() {
-            writer.write_all(k.0.as_ref())?;
+            writer.write_all(k.essence_str().as_ref())?;
             writer.write_all(b"=")?;
             writer.write_all(v.iter().join(";").as_ref())?;
             writer.write_all(b";\n")?;
@@ -142,7 +147,7 @@ impl MimeApps {
 
         writer.write_all(b"\n[Default Applications]\n")?;
         for (k, v) in self.default_apps.iter().sorted() {
-            writer.write_all(k.0.as_ref())?;
+            writer.write_all(k.essence_str().as_ref())?;
             writer.write_all(b"=")?;
             writer.write_all(v.iter().join(";").as_ref())?;
             writer.write_all(b";\n")?;
@@ -158,7 +163,7 @@ impl MimeApps {
             .default_apps
             .iter()
             .sorted()
-            .map(|(k, v)| vec![k.0.clone(), v.iter().join(", ")])
+            .map(|(k, v)| vec![k.to_string(), v.iter().join(", ")])
             .collect::<Vec<_>>();
 
         ascii_table::AsciiTable::default().print(rows);
@@ -166,7 +171,7 @@ impl MimeApps {
         Ok(())
     }
     pub fn list_handlers(&self) -> Result<()> {
-        use std::{convert::TryFrom, io::Write};
+        use std::{convert::TryFrom, io::Write, os::unix::ffi::OsStrExt};
 
         let stdout = std::io::stdout();
         let mut stdout = stdout.lock();
@@ -186,52 +191,5 @@ impl MimeApps {
             });
 
         Ok(())
-    }
-}
-
-#[derive(Debug)]
-pub struct SystemApps(pub HashMap<Mime, Vec<Handler>>);
-
-impl SystemApps {
-    pub fn get_handlers(&self, mime: &Mime) -> Option<Vec<Handler>> {
-        Some(self.0.get(mime)?.clone())
-    }
-    pub fn get_handler(&self, mime: &Mime) -> Option<Handler> {
-        Some(self.get_handlers(mime)?.get(0).unwrap().clone())
-    }
-    pub fn populate() -> Result<Self> {
-        use std::convert::TryFrom;
-
-        let mut map = HashMap::<Mime, Vec<Handler>>::with_capacity(50);
-
-        xdg::BaseDirectories::new()?
-            .get_data_dirs()
-            .into_iter()
-            .map(|mut data_dir| {
-                data_dir.push("applications");
-                data_dir
-            })
-            .filter_map(|data_dir| std::fs::read_dir(data_dir).ok())
-            .for_each(|dir| {
-                dir.filter_map(Result::ok)
-                    .filter(|p| {
-                        p.path()
-                            .extension()
-                            .map(std::ffi::OsStr::to_str)
-                            .flatten()
-                            == Some("desktop")
-                    })
-                    .filter_map(|p| DesktopEntry::try_from(p.path()).ok())
-                    .for_each(|entry| {
-                        let (file_name, mimes) = (entry.file_name, entry.mimes);
-                        mimes.into_iter().for_each(|mime| {
-                            map.entry(mime)
-                                .or_default()
-                                .push(Handler::assume_valid(file_name.clone()));
-                        });
-                    });
-            });
-
-        Ok(Self(map))
     }
 }

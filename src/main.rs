@@ -1,39 +1,57 @@
 use clap::Clap;
 use error::{Error, Result};
+use notify_rust::Notification;
+use std::convert::TryFrom;
 
+mod apps;
 mod common;
 mod error;
-mod mime_types;
-mod mimeapps;
 
-pub use common::{DesktopEntry, Handler, Mime};
+use common::{DesktopEntry, FlexibleMime, Handler, MimeOrExtension};
 
 #[derive(Clap)]
+#[clap(global_setting = clap::AppSettings::DeriveDisplayOrder)]
+#[clap(global_setting = clap::AppSettings::DisableHelpSubcommand)]
+#[clap(version = clap::crate_version!())]
 enum Cmd {
+    /// List default apps and the associated handlers
     List,
+
+    /// Open a path/URL with its default handler
     Open {
-        path: String,
+        #[clap(required = true)]
+        path: Vec<String>,
     },
+
+    /// Set the default handler for mime/extension
+    Set {
+        mime: MimeOrExtension,
+        handler: Handler,
+    },
+
+    /// Unset the default handler for mime/extension
+    Unset { mime: MimeOrExtension },
+
+    /// Launch the handler for specified extension/mime with optional arguments
+    Launch {
+        mime: MimeOrExtension,
+        args: Vec<String>,
+    },
+
+    /// Get handler for this mime/extension
     Get {
         #[clap(long)]
         json: bool,
-        mime: Mime,
+        mime: MimeOrExtension,
     },
-    Launch {
-        mime: Mime,
-        args: Vec<String>,
-    },
+
+    /// Add a handler for given mime/extension
+    /// Note that the first handler is the default
     Add {
-        mime: Mime,
+        mime: MimeOrExtension,
         handler: Handler,
     },
-    Set {
-        mime: Mime,
-        handler: Handler,
-    },
-    Unset {
-        mime: Mime,
-    },
+
     #[clap(setting = clap::AppSettings::Hidden)]
     Autocomplete {
         #[clap(short)]
@@ -44,41 +62,60 @@ enum Cmd {
 }
 
 fn main() -> Result<()> {
-    let mut apps = mimeapps::MimeApps::read()?;
+    let mut apps = apps::MimeApps::read()?;
 
-    match Cmd::parse() {
-        Cmd::Set { mime, handler } => {
-            apps.set_handler(mime, handler)?;
-        }
-        Cmd::Add { mime, handler } => {
-            apps.add_handler(mime, handler)?;
-        }
-        Cmd::Launch { mime, args } => {
-            apps.get_handler(&mime)?.launch(args)?;
-        }
-        Cmd::Get { mime, json } => {
-            apps.show_handler(&mime, json)?;
-        }
-        Cmd::Open { path } => {
-            apps.get_handler(&Mime::try_from_path(&path)?)?.open(path)?;
-        }
-        Cmd::List => {
-            apps.print()?;
-        }
-        Cmd::Unset { mime } => {
-            apps.remove_handler(&mime)?;
-        }
-        Cmd::Autocomplete {
-            desktop_files,
-            mimes,
-        } => {
-            if desktop_files {
-                apps.list_handlers()?;
-            } else if mimes {
-                mime_types::list()?;
+    let res = || -> Result<()> {
+        match Cmd::parse() {
+            Cmd::Set { mime, handler } => {
+                apps.set_handler(mime.0, handler)?;
+            }
+            Cmd::Add { mime, handler } => {
+                apps.add_handler(mime.0, handler)?;
+            }
+            Cmd::Launch { mime, args } => {
+                apps.get_handler(&mime.0)?.launch(args)?;
+            }
+            Cmd::Get { mime, json } => {
+                apps.show_handler(&mime.0, json)?;
+            }
+            Cmd::Open { path } => {
+                std::process::Command::new("notify-send")
+                    .arg(&format!("{:?}", path))
+                    .spawn()?;
+                apps.get_handler(
+                    &FlexibleMime::try_from(path.get(0).unwrap().as_str())?.0,
+                )?
+                .launch(path)?;
+            }
+            Cmd::List => {
+                apps.print()?;
+            }
+            Cmd::Unset { mime } => {
+                apps.remove_handler(&mime.0)?;
+            }
+            Cmd::Autocomplete {
+                desktop_files,
+                mimes,
+            } => {
+                if desktop_files {
+                    apps.list_handlers()?;
+                } else if mimes {
+                    common::db_autocomplete()?;
+                }
             }
         }
-    };
+        Ok(())
+    }();
 
+    match (res, atty::is(atty::Stream::Stdout)) {
+        (Err(e), true) => eprintln!("{}", e),
+        (Err(e), false) => {
+            Notification::new()
+                .summary("handlr error")
+                .body(&e.to_string())
+                .show()?;
+        }
+        _ => {}
+    };
     Ok(())
 }
