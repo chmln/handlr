@@ -1,9 +1,10 @@
 use crate::{Error, Result};
 use mime::Mime;
+use pest::Parser;
 use std::{
     convert::TryFrom,
     ffi::OsString,
-    path::PathBuf,
+    path::{Path, PathBuf},
     process::{Command, Stdio},
     str::FromStr,
 };
@@ -69,61 +70,54 @@ impl DesktopEntry {
     }
 }
 
+fn parse_file(path: &Path) -> Option<DesktopEntry> {
+    let raw = std::fs::read_to_string(&path).ok()?;
+    let file = DesktopEntry::parse(Rule::file, &raw).ok()?.next()?;
+
+    let mut entry = DesktopEntry::default();
+    entry.file_name = path.file_name()?.to_owned();
+
+    let mut section = "";
+
+    for line in file.into_inner() {
+        match line.as_rule() {
+            Rule::section => section = line.into_inner().as_str(),
+            Rule::property if section == "Desktop Entry" => {
+                let mut inner = line.into_inner(); // { name ~ "=" ~ value }
+
+                match inner.next()?.as_str() {
+                    "Name" if entry.name == "" => {
+                        entry.name = inner.next()?.as_str().into()
+                    }
+                    "Exec" => entry.exec = inner.next()?.as_str().into(),
+                    "MimeType" => {
+                        let mut mimes = inner
+                            .next()?
+                            .as_str()
+                            .split(";")
+                            .filter_map(|m| Mime::from_str(m).ok())
+                            .collect::<Vec<_>>();
+                        mimes.pop();
+                        entry.mimes = mimes;
+                    }
+                    "Terminal" => entry.term = inner.next()?.as_str() == "true",
+                    _ => {}
+                }
+            }
+            _ => {}
+        }
+    }
+
+    if !entry.name.is_empty() && !entry.exec.is_empty() {
+        Some(entry)
+    } else {
+        None
+    }
+}
+
 impl TryFrom<PathBuf> for DesktopEntry {
     type Error = Error;
-    fn try_from(p: PathBuf) -> Result<DesktopEntry> {
-        use pest::Parser;
-        let raw = std::fs::read_to_string(&p)?;
-        let file = Self::parse(Rule::file, &raw)?.next().unwrap();
-
-        let mut entry = Self::default();
-        entry.file_name = p.file_name().unwrap().to_owned();
-        let mut section = "";
-
-        for line in file.into_inner() {
-            match line.as_rule() {
-                Rule::section => {
-                    section = line.into_inner().as_str();
-                }
-                Rule::property if section == "Desktop Entry" => {
-                    let mut inner_rules = line.into_inner(); // { name ~ "=" ~ value }
-
-                    let name = inner_rules.next().unwrap().as_str();
-                    match name {
-                        "Name" if entry.name.is_empty() => {
-                            entry.name =
-                                inner_rules.next().unwrap().as_str().into();
-                        }
-                        "Exec" => {
-                            entry.exec =
-                                inner_rules.next().unwrap().as_str().into();
-                        }
-                        "MimeType" => {
-                            let mut mimes = inner_rules
-                                .next()
-                                .unwrap()
-                                .as_str()
-                                .split(";")
-                                .filter_map(|m| Mime::from_str(m).ok())
-                                .collect::<Vec<_>>();
-                            mimes.pop();
-                            entry.mimes = mimes;
-                        }
-                        "Terminal" => {
-                            entry.term =
-                                inner_rules.next().unwrap().as_str() == "true"
-                        }
-                        _ => {}
-                    }
-                }
-                _ => {}
-            }
-        }
-
-        if !entry.name.is_empty() && !entry.exec.is_empty() {
-            Ok(entry)
-        } else {
-            Err(Error::BadEntry(p.clone()))
-        }
+    fn try_from(path: PathBuf) -> Result<DesktopEntry> {
+        parse_file(&path).ok_or(Error::BadEntry(path))
     }
 }
