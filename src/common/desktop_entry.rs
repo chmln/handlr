@@ -19,24 +19,31 @@ pub struct DesktopEntry {
     pub(crate) mimes: Vec<Mime>,
 }
 
+#[derive(PartialEq, Eq)]
+pub enum Mode {
+    Launch,
+    Open,
+}
+
 impl DesktopEntry {
-    pub fn exec(&self, arguments: Vec<String>) -> Result<()> {
+    pub fn exec(&self, mode: Mode, arguments: Vec<String>) -> Result<()> {
         let supports_multiple =
             self.exec.contains("%F") || self.exec.contains("%U");
         if arguments.is_empty() {
-            self.exec_inner(None)?
-        } else if supports_multiple {
-            self.exec_inner(Some(arguments.join(" ")))?;
+            self.exec_inner(vec![])?
+        } else if supports_multiple || mode == Mode::Launch {
+            self.exec_inner(arguments)?;
         } else {
             for arg in arguments {
-                self.exec_inner(Some(arg))?;
+                self.exec_inner(vec![arg])?;
             }
         };
 
         Ok(())
     }
-    fn exec_inner(&self, arg: Option<String>) -> Result<()> {
+    fn exec_inner(&self, arg: Vec<String>) -> Result<()> {
         let (cmd, args) = self.get_cmd(arg)?;
+        dbg!(&cmd, &args);
         let mut cmd = Command::new(cmd);
         cmd.args(args);
         if self.term {
@@ -46,23 +53,18 @@ impl DesktopEntry {
         };
         Ok(())
     }
-    pub fn get_cmd(
-        &self,
-        arg: Option<String>,
-    ) -> Result<(String, Vec<String>)> {
+    pub fn get_cmd(&self, arg: Vec<String>) -> Result<(String, Vec<String>)> {
         let special = regex::Regex::new("%(f|F|u|U)").unwrap();
 
         let mut split = shlex::split(&self.exec)
             .unwrap()
             .into_iter()
-            .filter_map(|s| match s.as_str() {
+            .flat_map(|s| match s.as_str() {
                 "%f" | "%F" | "%u" | "%U" => arg.clone(),
-                s if special.is_match(s) => Some(
-                    special
-                        .replace_all(s, arg.as_deref().unwrap_or_default())
-                        .into(),
-                ),
-                _ => Some(s),
+                s if special.is_match(s) => vec![special
+                    .replace_all(s, arg.clone().join(" ").as_str())
+                    .into()],
+                _ => vec![s],
             })
             .collect::<Vec<_>>();
 

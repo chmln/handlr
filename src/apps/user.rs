@@ -73,7 +73,7 @@ impl MimeApps {
             (json::object! {
                 handler: handler.to_string(),
                 name: entry.name.as_str(),
-                cmd: entry.get_cmd(None)?.0
+                cmd: entry.get_cmd(vec![])?.0
             })
             .to_string()
         } else {

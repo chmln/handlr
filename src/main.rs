@@ -31,7 +31,7 @@ fn main() -> Result<()> {
             }
             Cmd::Open { paths } => {
                 let mime = MimeType::try_from(paths[0].as_str())?.0;
-                apps.get_handler(&mime)?.launch(paths)?;
+                apps.get_handler(&mime)?.open(paths)?;
             }
             Cmd::List => {
                 apps.print()?;

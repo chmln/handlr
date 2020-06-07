@@ -1,4 +1,7 @@
-use crate::{common::DesktopEntry, Error, Result};
+use crate::{
+    common::{DesktopEntry, ExecMode},
+    Error, Result,
+};
 use std::{convert::TryFrom, ffi::OsString, path::PathBuf};
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
@@ -36,6 +39,9 @@ impl Handler {
         DesktopEntry::try_from(Self::get_path(&self.0).unwrap())
     }
     pub fn launch(&self, args: Vec<String>) -> Result<()> {
-        self.get_entry()?.exec(args)
+        self.get_entry()?.exec(ExecMode::Launch, args)
+    }
+    pub fn open(&self, args: Vec<String>) -> Result<()> {
+        self.get_entry()?.exec(ExecMode::Open, args)
     }
 }
