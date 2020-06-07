@@ -9,9 +9,12 @@ function __handlr_autocomplete
     complete -f -c handlr -n "not __fish_seen_subcommand_from $handlr_commands" -a "unset" -d "Unset handler"
   end
 
-  function _set
+  function _set_add
     complete -f -c handlr -n '__fish_seen_subcommand_from set; __fish_prev_arg_in "set"' -a '(handlr autocomplete -m)'
     complete -f -c handlr -n '__fish_seen_subcommand_from set; set -l last (commandline -pco)[-2]; [ "$last" = "set" ]' -a '(handlr autocomplete -d)'
+
+    complete -f -c handlr -n '__fish_seen_subcommand_from add; __fish_prev_arg_in "add"' -a '(handlr autocomplete -m)'
+    complete -f -c handlr -n '__fish_seen_subcommand_from add; set -l last (commandline -pco)[-2]; [ "$last" = "add" ]' -a '(handlr autocomplete -d)'
   end
 
   subcommands
