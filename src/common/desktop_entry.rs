@@ -42,14 +42,19 @@ impl DesktopEntry {
         Ok(())
     }
     fn exec_inner(&self, arg: Vec<String>) -> Result<()> {
-        let (cmd, args) = self.get_cmd(arg)?;
-        let mut cmd = Command::new(cmd);
-        cmd.args(args);
+        let mut cmd = {
+            let (cmd, args) = self.get_cmd(arg)?;
+            let mut cmd = Command::new(cmd);
+            cmd.args(args);
+            cmd
+        };
+
         if self.term {
             cmd.status()?;
         } else {
             cmd.stdout(Stdio::null()).stderr(Stdio::null()).spawn()?;
         };
+
         Ok(())
     }
     pub fn get_cmd(&self, arg: Vec<String>) -> Result<(String, Vec<String>)> {

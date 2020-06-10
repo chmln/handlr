@@ -1,7 +1,9 @@
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
     #[error(transparent)]
-    Parse(#[from] pest::error::Error<crate::common::PestRule>),
+    ParseEntry(#[from] pest::error::Error<crate::common::EntryRule>),
+    #[error(transparent)]
+    ParseApps(#[from] pest::error::Error<crate::apps::MimeappsRule>),
     #[error(transparent)]
     Io(#[from] std::io::Error),
     #[error(transparent)]
@@ -16,7 +18,7 @@ pub enum Error {
     Ambiguous(String),
     #[error(transparent)]
     BadMimeType(#[from] mime::FromStrError),
-    #[error("Malformed desktop entry at .{0}")]
+    #[error("malformed desktop entry at .{0}")]
     BadEntry(std::path::PathBuf),
 }
 

@@ -89,10 +89,7 @@ impl MimeApps {
     }
     pub fn read() -> Result<Self> {
         let raw_conf = std::fs::read_to_string(Self::path()?)?;
-        let file = Self::parse(Rule::file, &raw_conf)
-            .expect("unsuccessful parse") // unwrap the parse result
-            .next()
-            .unwrap();
+        let file = Self::parse(Rule::file, &raw_conf)?.next().unwrap();
 
         let mut current_section_name = "".to_string();
         let mut conf = Self {
