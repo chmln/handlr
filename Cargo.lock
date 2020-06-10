@@ -1828,7 +1828,8 @@ checksum = "d089681aa106a86fade1b0128fb5daf07d5867a509ab036d99988dec80429a57"
 [[package]]
 name = "xdg-mime"
 version = "0.3.0"
-source = "git+https://github.com/ebassi/xdg-mime-rs#68f9130f316a67c6fbce440698788b94b45380c5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "362780d5ed4fcb81db6460966be8cd691e48419caa84bb8a81063d2abdab7082"
 dependencies = [
  "dirs 2.0.2",
  "glob",
