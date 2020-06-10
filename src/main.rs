@@ -56,10 +56,9 @@ fn main() -> Result<()> {
     match (res, atty::is(atty::Stream::Stdout)) {
         (Err(e), true) => eprintln!("{}", e),
         (Err(e), false) => {
-            notify_rust::Notification::new()
-                .summary("handlr error")
-                .body(&e.to_string())
-                .show()?;
+            std::process::Command::new("notify-send")
+                .args(&["handlr error", &e.to_string()])
+                .spawn()?;
         }
         _ => {}
     };

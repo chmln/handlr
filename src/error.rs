@@ -7,8 +7,6 @@ pub enum Error {
     #[error(transparent)]
     Io(#[from] std::io::Error),
     #[error(transparent)]
-    Notify(#[from] notify_rust::error::Error),
-    #[error(transparent)]
     Xdg(#[from] xdg::BaseDirectoriesError),
     #[error(transparent)]
     Config(#[from] confy::ConfyError),
