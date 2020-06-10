@@ -43,7 +43,6 @@ impl DesktopEntry {
     }
     fn exec_inner(&self, arg: Vec<String>) -> Result<()> {
         let (cmd, args) = self.get_cmd(arg)?;
-        dbg!(&cmd, &args);
         let mut cmd = Command::new(cmd);
         cmd.args(args);
         if self.term {
