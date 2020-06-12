@@ -1,4 +1,4 @@
-use crate::Result;
+use crate::{Error, Result};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize)]
@@ -41,14 +41,21 @@ impl Config {
                 .spawn()?
         };
 
-        process
-            .stdin
-            .unwrap()
-            .write_all(opts.join("\n").as_bytes())?;
+        let output = {
+            process
+                .stdin
+                .ok_or(Error::Selector(self.selector.clone()))?
+                .write_all(opts.join("\n").as_bytes())?;
 
-        let mut output = String::with_capacity(24);
-        process.stdout.unwrap().read_to_string(&mut output)?;
-        let output = output.trim_end().to_owned();
+            let mut output = String::with_capacity(24);
+
+            process
+                .stdout
+                .ok_or(Error::Selector(self.selector.clone()))?
+                .read_to_string(&mut output)?;
+
+            output.trim_end().to_owned()
+        };
 
         Ok(output)
     }

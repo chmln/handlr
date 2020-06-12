@@ -51,11 +51,20 @@ impl MimeApps {
                     .into_iter()
                     .map(|h| (h, h.get_entry().unwrap().name))
                     .collect::<Vec<_>>();
-                let selected =
-                    config.select(handlers.iter().map(|h| h.1.clone()))?;
-                let selected =
-                    handlers.into_iter().find(|h| h.1 == selected).unwrap().0;
-                Ok(selected.clone())
+
+                let handler = {
+                    let name =
+                        config.select(handlers.iter().map(|h| h.1.clone()))?;
+
+                    handlers
+                        .into_iter()
+                        .find(|h| h.1 == name)
+                        .unwrap()
+                        .0
+                        .clone()
+                };
+
+                Ok(handler)
             }
             Some(handlers) => Ok(handlers.get(0).unwrap().clone()),
             None => self

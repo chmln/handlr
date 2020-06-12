@@ -20,6 +20,8 @@ pub enum Error {
     BadEntry(std::path::PathBuf),
     #[error(transparent)]
     MimeDetect(#[from] mime_detective::DetectiveError),
+    #[error("error spawning selector process '{0}'")]
+    Selector(String),
 }
 
 pub type Result<T, E = Error> = std::result::Result<T, E>;

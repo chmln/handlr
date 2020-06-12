@@ -18,7 +18,7 @@ function __handlr_autocomplete
   end
 
   subcommands
-  _set
+  _set_add
   complete -f -c handlr -n '__fish_seen_subcommand_from get' -a '(handlr autocomplete -m)'
   complete -f -c handlr -n '__fish_seen_subcommand_from get' -l 'json'
   complete -f -c handlr -n '__fish_seen_subcommand_from unset' -a '(handlr autocomplete -m)'
