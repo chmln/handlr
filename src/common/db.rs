@@ -1,9 +1,4 @@
 use crate::Result;
-use once_cell::sync::Lazy;
-use xdg_mime::SharedMimeInfo;
-
-pub static SHARED_MIME_DB: Lazy<SharedMimeInfo> =
-    Lazy::new(SharedMimeInfo::new);
 
 static CUSTOM_MIMES: &[&'static str] = &[
     "inode/directory",
