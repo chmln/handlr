@@ -377,7 +377,7 @@ dependencies = [
 
 [[package]]
 name = "handlr"
-version = "0.4.1"
+version = "0.4.2"
 dependencies = [
  "ascii_table",
  "atty",
