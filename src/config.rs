@@ -57,6 +57,10 @@ impl Config {
             output.trim_end().to_owned()
         };
 
-        Ok(output)
+        if output.is_empty() {
+            Err(Error::Cancelled)
+        } else {
+            Ok(output)
+        }
     }
 }

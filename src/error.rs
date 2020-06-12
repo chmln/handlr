@@ -22,6 +22,8 @@ pub enum Error {
     MimeDetect(#[from] mime_detective::DetectiveError),
     #[error("error spawning selector process '{0}'")]
     Selector(String),
+    #[error("selection cancelled")]
+    Cancelled,
 }
 
 pub type Result<T, E = Error> = std::result::Result<T, E>;

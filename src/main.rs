@@ -54,14 +54,19 @@ fn main() -> Result<()> {
     }();
 
     match (res, atty::is(atty::Stream::Stdout)) {
-        (Err(e), true) => eprintln!("{}", e),
+        (Err(e), _) if matches!(e, Error::Cancelled) => {
+            std::process::exit(1);
+        }
+        (Err(e), true) => {
+            eprintln!("{}", e);
+            std::process::exit(1);
+        }
         (Err(e), false) => {
             std::process::Command::new("notify-send")
                 .args(&["handlr error", &e.to_string()])
                 .spawn()?;
+            std::process::exit(1);
         }
-        _ => {}
-    };
-
-    Ok(())
+        _ => Ok(()),
+    }
 }
