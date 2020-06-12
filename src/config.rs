@@ -11,7 +11,7 @@ impl Default for Config {
     fn default() -> Self {
         Config {
             enable_selector: false,
-            selector: "rofi -dmenu".to_owned(),
+            selector: "rofi -dmenu -p 'Open With: '".to_owned(),
         }
     }
 }
