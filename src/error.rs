@@ -10,10 +10,10 @@ pub enum Error {
     Xdg(#[from] xdg::BaseDirectoriesError),
     #[error(transparent)]
     Config(#[from] confy::ConfyError),
-    #[error("no handler defined for {0}")]
+    #[error("no handlers found for '{0}'")]
     NotFound(String),
-    #[error("could not figure out the mime type {0}")]
-    Ambiguous(String),
+    #[error("could not figure out the mime type of '{0}'")]
+    Ambiguous(std::path::PathBuf),
     #[error(transparent)]
     BadMimeType(#[from] mime::FromStrError),
     #[error("malformed desktop entry at {0}")]

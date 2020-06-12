@@ -32,7 +32,7 @@ impl TryFrom<&Path> for MimeType {
     fn try_from(path: &Path) -> Result<Self> {
         match MimeDetective::new()?.detect_filepath(path)? {
             guess if guess == mime::APPLICATION_OCTET_STREAM => {
-                Err(Error::Ambiguous(path.to_string_lossy().into()))
+                Err(Error::Ambiguous(path.to_owned()))
             }
             guess => Ok(Self(guess)),
         }
@@ -42,14 +42,20 @@ impl TryFrom<&Path> for MimeType {
 // Mime derived from user input: extension(.pdf) or type like image/jpg
 #[derive(Debug)]
 pub struct MimeOrExtension(pub Mime);
+
 impl FromStr for MimeOrExtension {
     type Err = Error;
     fn from_str(s: &str) -> Result<Self> {
-        if s.starts_with(".") {
-            Ok(Self(MimeType::try_from(s)?.0))
+        let mime = if s.starts_with(".") {
+            mime_db::lookup(&s[1..])
+                .ok_or(Error::Ambiguous(s.into()))?
+                .parse::<Mime>()
+                .unwrap()
         } else {
-            Ok(Self(Mime::from_str(s)?))
-        }
+            Mime::from_str(s)?
+        };
+
+        Ok(Self(mime))
     }
 }
 
@@ -58,22 +64,25 @@ mod tests {
     use super::*;
 
     #[test]
-    fn user_input() {
-        "image/jpg".parse::<MimeOrExtension>().unwrap();
-        ".jpg".parse::<MimeOrExtension>().unwrap();
+    fn user_input() -> Result<()> {
+        assert_eq!(MimeOrExtension::from_str(".pdf")?.0, mime::APPLICATION_PDF);
+        assert_eq!(
+            MimeOrExtension::from_str("image/jpeg")?.0,
+            mime::IMAGE_JPEG
+        );
+
         "image//jpg".parse::<MimeOrExtension>().unwrap_err();
         "image".parse::<MimeOrExtension>().unwrap_err();
+
+        Ok(())
     }
 
     #[test]
-    fn from_path_with_extension() {
-        assert_eq!(
-            MimeType::try_from(".pdf").unwrap().0,
-            mime::APPLICATION_PDF
-        );
-        assert_eq!(
-            MimeType::try_from(".").unwrap().0.essence_str(),
-            "inode/directory"
-        );
+    fn from_path() -> Result<()> {
+        assert_eq!(MimeType::try_from(".")?.0.essence_str(), "inode/directory");
+        assert_eq!(MimeType::try_from("./tests/cat")?.0.type_(), "text");
+        assert_eq!(MimeType::try_from("./tests/rust.vim")?.0.type_(), "text");
+
+        Ok(())
     }
 }
