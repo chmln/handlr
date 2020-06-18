@@ -1,6 +1,5 @@
 use crate::{Error, Result};
 use mime::Mime;
-use mime_detective::MimeDetective;
 use std::{
     convert::TryFrom,
     path::{Path, PathBuf},
@@ -30,11 +29,16 @@ impl TryFrom<&str> for MimeType {
 impl TryFrom<&Path> for MimeType {
     type Error = Error;
     fn try_from(path: &Path) -> Result<Self> {
-        match MimeDetective::new()?.detect_filepath(path)? {
-            guess if guess == mime::APPLICATION_OCTET_STREAM => {
+        match xdg_mime::SharedMimeInfo::new()
+            .guess_mime_type()
+            .path(&path)
+            .guess()
+            .mime_type()
+        {
+            guess if guess == &mime::APPLICATION_OCTET_STREAM => {
                 Err(Error::Ambiguous(path.to_owned()))
             }
-            guess => Ok(Self(guess)),
+            guess => Ok(Self(guess.clone())),
         }
     }
 }

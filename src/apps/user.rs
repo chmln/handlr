@@ -67,12 +67,19 @@ impl MimeApps {
                 Ok(handler)
             }
             Some(handlers) => Ok(handlers.get(0).unwrap().clone()),
-            None => self
+            None => match self
                 .added_associations
                 .get(mime)
                 .map(|h| h.get(0).unwrap().clone())
                 .or_else(|| self.system_apps.get_handler(mime))
-                .ok_or(Error::NotFound(mime.to_string())),
+                .ok_or(Error::NotFound(mime.to_string()))
+            {
+                Ok(h) => Ok(h),
+                Err(Error::NotFound(_)) if mime.type_() == "text" => self
+                    .get_handler(&mime::TEXT_PLAIN)
+                    .map_err(|_| Error::NotFound(mime.to_string())),
+                Err(e) => Err(e),
+            },
         }
     }
     pub fn show_handler(&self, mime: &Mime, output_json: bool) -> Result<()> {
