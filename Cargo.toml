@@ -24,6 +24,7 @@ atty = "0.2.14"
 confy = "0.4.0"
 serde = "1.0.111"
 xdg-mime = "0.3.2"
+freedesktop_entry_parser = "0.2.2"
 
 [profile.release]
 opt-level=3

@@ -84,8 +84,11 @@ mod tests {
     #[test]
     fn from_path() -> Result<()> {
         assert_eq!(MimeType::try_from(".")?.0.essence_str(), "inode/directory");
-        assert_eq!(MimeType::try_from("./tests/cat")?.0.type_(), "text");
-        assert_eq!(MimeType::try_from("./tests/rust.vim")?.0.type_(), "text");
+        assert_eq!(MimeType::try_from("./tests/rust.vim")?.0, "text/plain");
+        assert_eq!(
+            MimeType::try_from("./tests/cat")?.0,
+            "application/x-shellscript"
+        );
 
         Ok(())
     }

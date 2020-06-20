@@ -1,8 +1,6 @@
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
     #[error(transparent)]
-    ParseEntry(#[from] pest::error::Error<crate::common::EntryRule>),
-    #[error(transparent)]
     ParseApps(#[from] pest::error::Error<crate::apps::MimeappsRule>),
     #[error(transparent)]
     Io(#[from] std::io::Error),

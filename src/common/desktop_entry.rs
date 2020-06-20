@@ -1,6 +1,5 @@
 use crate::{Error, Result};
 use mime::Mime;
-use pest::Parser;
 use std::{
     convert::TryFrom,
     ffi::OsString,
@@ -9,8 +8,7 @@ use std::{
     str::FromStr,
 };
 
-#[derive(Debug, Clone, pest_derive::Parser, Default, PartialEq, Eq)]
-#[grammar = "common/ini.pest"]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct DesktopEntry {
     pub(crate) name: String,
     pub(crate) exec: String,
@@ -77,39 +75,32 @@ impl DesktopEntry {
 }
 
 fn parse_file(path: &Path) -> Option<DesktopEntry> {
-    let raw = std::fs::read_to_string(&path).ok()?;
-    let file = DesktopEntry::parse(Rule::file, &raw).ok()?.next()?;
+    let raw = std::fs::read(&path).ok()?;
+    let parsed = freedesktop_entry_parser::parse_entry(&raw)
+        .filter_map(Result::ok)
+        .find(|s| s.title == b"Desktop Entry")?;
 
     let mut entry = DesktopEntry::default();
     entry.file_name = path.file_name()?.to_owned();
 
-    let mut section = "";
-
-    for line in file.into_inner() {
-        match line.as_rule() {
-            Rule::section => section = line.into_inner().as_str(),
-            Rule::property if section == "Desktop Entry" => {
-                let mut inner = line.into_inner(); // { name ~ "=" ~ value }
-
-                match inner.next()?.as_str() {
-                    "Name" if entry.name == "" => {
-                        entry.name = inner.next()?.as_str().into()
-                    }
-                    "Exec" => entry.exec = inner.next()?.as_str().into(),
-                    "MimeType" => {
-                        let mut mimes = inner
-                            .next()?
-                            .as_str()
-                            .split(";")
-                            .filter_map(|m| Mime::from_str(m).ok())
-                            .collect::<Vec<_>>();
-                        mimes.pop();
-                        entry.mimes = mimes;
-                    }
-                    "Terminal" => entry.term = inner.next()?.as_str() == "true",
-                    _ => {}
-                }
+    for attr in parsed.attrs {
+        match attr.name {
+            b"Name" if entry.name == "" => {
+                entry.name = String::from_utf8(attr.value.into()).ok()?;
             }
+            b"Exec" => {
+                entry.exec = String::from_utf8(attr.value.into()).ok()?
+            }
+            b"MimeType" => {
+                let mut mimes = String::from_utf8(attr.value.into())
+                    .ok()?
+                    .split(";")
+                    .filter_map(|m| Mime::from_str(m).ok())
+                    .collect::<Vec<_>>();
+                mimes.pop();
+                entry.mimes = mimes;
+            }
+            b"Terminal" => entry.term = attr.value == b"true",
             _ => {}
         }
     }
@@ -125,5 +116,16 @@ impl TryFrom<PathBuf> for DesktopEntry {
     type Error = Error;
     fn try_from(path: PathBuf) -> Result<DesktopEntry> {
         parse_file(&path).ok_or(Error::BadEntry(path))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn complex_exec() {
+        let path = PathBuf::from("tests/cmus.desktop");
+        parse_file(&*path).unwrap();
     }
 }
