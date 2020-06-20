@@ -6,7 +6,8 @@ Manage your default applications with ease using `handlr`!
 
 - Set default handler by extension or mime-type
 - Intelligent mime type detection from files based on extension and content
-- Mime-type validation against a massive database
+- Open multiple files at once
+- Set multiple handlers for mime/extension and use rofi/dmenu to pick one
 - List default associations
 - Automatically removes invalid/wrong `.desktop` entries from `mimeapps.list`
 - Helper commands like `launch`, `get --json` for your scripting needs
@@ -38,11 +39,26 @@ handlr launch x-scheme-handler/https -- https://google.ca
 ```
 
 ## Compared to `xdg-utils`
+- Can open multiple files/URLs at once
+- Can have multiple handlers and use rofi/dmenu to pick one at runtime
 - Far easier to use with simple commands like `get`, `set`, `list`
 - Can operate on extensions, **no need to look up or remember mime types**
   - useful for common tasks like setting a handler for png/docx/etc files
 - Superb autocomplete (currently just fish), including mimes, extensions, and `.desktop` files
 - Optional json output for commands like `get`
+
+## Setting multiple handlers
+
+1) Open `~/.config/handlr/handlr.toml` and set `enable_selector = true`. Optionally, you can also tweak the `selector` to your selector command (using e.g. rofi or dmenu).
+
+2) Add a second/third/whatever handler using `handlr add`, for example
+```
+handlr add x-scheme-handler/https firefox-developer-edition.desktop
+```
+
+3) Now in this example when you open a URL, you will be prompted to select the desired application.
+
+![](https://user-images.githubusercontent.com/11352152/85187445-c4bb2580-b26d-11ea-80a6-679e494ab062.png)
 
 ## Screenshots
 
