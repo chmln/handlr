@@ -14,6 +14,8 @@ pub enum Error {
     Ambiguous(std::path::PathBuf),
     #[error(transparent)]
     BadMimeType(#[from] mime::FromStrError),
+    #[error("bad mime: {0}")]
+    InvalidMime(mime::Mime),
     #[error("malformed desktop entry at {0}")]
     BadEntry(std::path::PathBuf),
     #[error("error spawning selector process '{0}'")]

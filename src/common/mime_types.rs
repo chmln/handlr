@@ -10,6 +10,20 @@ use std::{
 #[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct MimeType(pub Mime);
 
+impl MimeType {
+    fn from_ext(ext: &str) -> Result<Mime> {
+        match &*xdg_mime::SharedMimeInfo::new()
+            .get_mime_types_from_file_name(ext)
+        {
+            [m] if m == &mime::APPLICATION_OCTET_STREAM => {
+                Err(Error::Ambiguous(ext.into()))
+            }
+            [] => unreachable!(),
+            [guess, ..] => Ok(guess.clone()),
+        }
+    }
+}
+
 impl TryFrom<&str> for MimeType {
     type Error = Error;
 
@@ -51,12 +65,12 @@ impl FromStr for MimeOrExtension {
     type Err = Error;
     fn from_str(s: &str) -> Result<Self> {
         let mime = if s.starts_with(".") {
-            mime_db::lookup(&s[1..])
-                .ok_or(Error::Ambiguous(s.into()))?
-                .parse::<Mime>()
-                .unwrap()
+            MimeType::from_ext(s)?
         } else {
-            Mime::from_str(s)?
+            match Mime::from_str(s)? {
+                m if m.subtype() == "" => return Err(Error::InvalidMime(m)),
+                proper_mime => proper_mime,
+            }
         };
 
         Ok(Self(mime))
@@ -89,6 +103,16 @@ mod tests {
             MimeType::try_from("./tests/cat")?.0,
             "application/x-shellscript"
         );
+
+        Ok(())
+    }
+
+    #[test]
+    fn from_ext() -> Result<()> {
+        assert_eq!(".mp3".parse::<MimeOrExtension>()?.0, "audio/mpeg");
+        assert_eq!("audio/mpeg".parse::<MimeOrExtension>()?.0, "audio/mpeg");
+        ".".parse::<MimeOrExtension>().unwrap_err();
+        "audio/".parse::<MimeOrExtension>().unwrap_err();
 
         Ok(())
     }
