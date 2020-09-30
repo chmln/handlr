@@ -1,0 +1,75 @@
+#compdef handlr
+
+_handlr_types() {
+  declare -a types
+  types=(${${(f)"$(handlr autocomplete -m)"}})
+  _describe -t types "types" types
+}
+
+_handlr_desktops() {
+  declare -a desktops
+  desktops=(${${(f)"$(handlr autocomplete -d | tr '\t' ':')"}})
+  _describe -t desktops "desktops" desktops
+}
+
+_handlr_commands() {
+  declare -a subcommands
+  subcommands=(
+      'list:List default apps and the associated handlers'
+      'open:Open a path/URL with its default handler'
+      'set:Set the default handler for mime/extension'
+      'unset:Unset the default handler for mime/extension'
+      'launch:Launch the handler for specified extension/mime with optional arguments'
+      'get:Get handler for this mime/extension'
+      'add:Add a handler for given mime/extension Note that the first handler is the default'
+  )
+  _describe -t handlr-commands "command" subcommands
+}
+
+_handlr_subcommand () {
+  case "$words[1]" in
+    (list)
+      ;;
+    (open)
+      _alternative '1:filename/path:_files'
+      ;;
+    (get|unset)
+      _arguments ':types:_handlr_types'
+      ;;
+    (launch)
+      _arguments \
+          '1:types:_handlr_types' \
+          '2:filename/path:_files'
+      ;;
+    (set|add)
+      _arguments \
+          '1:type:_handlr_types' \
+          '2:desktop:_handlr_desktops'
+      ;;
+    (*)
+      _message 'Unknown subcommand'
+  esac
+}
+
+_handlr () {
+  local curcontext="$curcontext" state line
+  typeset -A opt_args
+
+  _arguments -C \
+    '--version[get version]:' \
+    '--help[get help]:' \
+    '(-): :->command' \
+    '(-)*:: :->arguments'
+
+  case $state in
+    (command)
+      _handlr_commands
+      ;;
+    (arguments)
+      curcontext=${curcontext%:*:*}:handlr-$words[1]:
+      _handlr_subcommand
+      ;;
+  esac
+}
+
+_handlr "$@"
