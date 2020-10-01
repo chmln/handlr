@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 pub struct Config {
     pub enable_selector: bool,
     pub selector: String,
+    pub terminal_emulator: String,
 }
 
 impl Default for Config {
@@ -12,6 +13,7 @@ impl Default for Config {
         Config {
             enable_selector: false,
             selector: "rofi -dmenu -p 'Open With: '".to_owned(),
+            terminal_emulator: "xterm -e".to_owned(),
         }
     }
 }

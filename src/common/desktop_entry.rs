@@ -70,6 +70,18 @@ impl DesktopEntry {
             })
             .collect::<Vec<_>>();
 
+        // If the entry expects a terminal (emulator), but this process is not running in one, we
+        // launch a new one.
+        if self.term && !atty::is(atty::Stream::Stdout) {
+            let config = crate::config::Config::load()?;
+            let terminal_emulator_args =
+                shlex::split(&config.terminal_emulator).unwrap();
+            split = terminal_emulator_args
+                .into_iter()
+                .chain(split.into_iter())
+                .collect();
+        }
+
         Ok((split.remove(0), split))
     }
 }
