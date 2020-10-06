@@ -29,6 +29,9 @@ impl TryFrom<&str> for MimeType {
 
     fn try_from(arg: &str) -> Result<Self> {
         if let Ok(url) = url::Url::parse(arg) {
+            if url.scheme() == "file" {
+                return Self::try_from(url.path())
+            }
             Ok(Self(
                 format!("x-scheme-handler/{}", url.scheme())
                     .parse::<Mime>()
