@@ -1,4 +1,4 @@
-use crate::{Error, Result};
+use crate::{Error, Result, CONFIG};
 use mime::Mime;
 use std::{
     convert::TryFrom,
@@ -17,7 +17,7 @@ pub struct DesktopEntry {
     pub(crate) mimes: Vec<Mime>,
 }
 
-#[derive(PartialEq, Eq)]
+#[derive(PartialEq, Eq, Copy, Clone)]
 pub enum Mode {
     Launch,
     Open,
@@ -55,16 +55,16 @@ impl DesktopEntry {
 
         Ok(())
     }
-    pub fn get_cmd(&self, arg: Vec<String>) -> Result<(String, Vec<String>)> {
+    pub fn get_cmd(&self, args: Vec<String>) -> Result<(String, Vec<String>)> {
         let special = regex::Regex::new("%(f|F|u|U)").unwrap();
 
         let mut split = shlex::split(&self.exec)
             .unwrap()
             .into_iter()
             .flat_map(|s| match s.as_str() {
-                "%f" | "%F" | "%u" | "%U" => arg.clone(),
+                "%f" | "%F" | "%u" | "%U" => args.clone(),
                 s if special.is_match(s) => vec![special
-                    .replace_all(s, arg.clone().join(" ").as_str())
+                    .replace_all(s, args.clone().join(" ").as_str())
                     .into()],
                 _ => vec![s],
             })
@@ -73,9 +73,8 @@ impl DesktopEntry {
         // If the entry expects a terminal (emulator), but this process is not running in one, we
         // launch a new one.
         if self.term && !atty::is(atty::Stream::Stdout) {
-            let config = crate::config::Config::load()?;
             let terminal_emulator_args =
-                shlex::split(&config.terminal_emulator).unwrap();
+                shlex::split(&CONFIG.terminal_emulator).unwrap();
             split = terminal_emulator_args
                 .into_iter()
                 .chain(split.into_iter())
@@ -87,32 +86,29 @@ impl DesktopEntry {
 }
 
 fn parse_file(path: &Path) -> Option<DesktopEntry> {
-    let raw = std::fs::read(&path).ok()?;
-    let parsed = freedesktop_entry_parser::parse_entry(&raw)
-        .filter_map(Result::ok)
-        .find(|s| s.title == b"Desktop Entry")?;
+    let raw_entry = freedesktop_entry_parser::parse_entry(&path).ok()?;
+    let section = raw_entry.section("Desktop Entry");
 
     let mut entry = DesktopEntry::default();
     entry.file_name = path.file_name()?.to_owned();
 
-    for attr in parsed.attrs {
+    for attr in section.attrs().into_iter().filter(|a| a.has_value()) {
         match attr.name {
-            b"Name" if entry.name == "" => {
-                entry.name = String::from_utf8(attr.value.into()).ok()?;
+            "Name" if entry.name == "" => {
+                entry.name = attr.value.unwrap().into();
             }
-            b"Exec" => {
-                entry.exec = String::from_utf8(attr.value.into()).ok()?
-            }
-            b"MimeType" => {
-                let mut mimes = String::from_utf8(attr.value.into())
-                    .ok()?
+            "Exec" => entry.exec = attr.value.unwrap().into(),
+            "MimeType" => {
+                let mut mimes = attr
+                    .value
+                    .unwrap()
                     .split(";")
                     .filter_map(|m| Mime::from_str(m).ok())
                     .collect::<Vec<_>>();
                 mimes.pop();
                 entry.mimes = mimes;
             }
-            b"Terminal" => entry.term = attr.value == b"true",
+            "Terminal" => entry.term = attr.value.unwrap() == "true",
             _ => {}
         }
     }

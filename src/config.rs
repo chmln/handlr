@@ -1,49 +1,31 @@
-use std::env;
 use crate::{Error, Result};
+use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 
-fn default_terminal() -> std::string::String{
-    match env::var("TERMINAL") {
-        Ok(val) => val,
-        Err(_) => "xterm -e".to_owned()
-    }
-}
-
-fn default_selector() -> std::string::String{
-    "rofi -dmenu -p 'Open With: '".to_owned()
-}
-
-fn default_enable_selector() -> bool {
-    false
-}
+pub static CONFIG: Lazy<Config> = Lazy::new(Config::load);
 
 #[derive(Serialize, Deserialize)]
+#[serde(default)]
 pub struct Config {
-    #[serde(default="default_enable_selector")]
     pub enable_selector: bool,
-
-    #[serde(default="default_selector")]
     pub selector: String,
-
-    #[serde(default="default_terminal")]
     pub terminal_emulator: String,
 }
-
 
 impl Default for Config {
     fn default() -> Self {
         // This seems repetitive but serde does not uses Default
         Config {
-            enable_selector: default_enable_selector(),
-            selector: default_selector(),
-            terminal_emulator: default_terminal()
+            enable_selector: false,
+            selector: std::env::var("TERMINAL").unwrap_or("xterm -e".into()),
+            terminal_emulator: "rofi -dmenu -p 'Open With: '".into(),
         }
     }
 }
 
 impl Config {
-    pub fn load() -> Result<Self> {
-        Ok(confy::load("handlr")?)
+    pub fn load() -> Self {
+        confy::load("handlr").unwrap()
     }
 
     pub fn select<O: Iterator<Item = String>>(

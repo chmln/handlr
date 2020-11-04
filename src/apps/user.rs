@@ -1,17 +1,18 @@
 use crate::{
     apps::SystemApps,
     common::{DesktopEntry, Handler},
-    Error, Result,
+    Error, Result, CONFIG,
 };
 use mime::Mime;
 use pest::Parser;
 use std::{
     collections::{HashMap, VecDeque},
+    io::Read,
     path::PathBuf,
     str::FromStr,
 };
 
-#[derive(Debug, pest_derive::Parser)]
+#[derive(Debug, Default, pest_derive::Parser)]
 #[grammar = "common/ini.pest"]
 pub struct MimeApps {
     added_associations: HashMap<Mime, VecDeque<Handler>>,
@@ -20,21 +21,17 @@ pub struct MimeApps {
 }
 
 impl MimeApps {
-    pub fn add_handler(&mut self, mime: Mime, handler: Handler) -> Result<()> {
-        let handlers = self.default_apps.entry(mime).or_default();
-        handlers.push_back(handler);
-        self.save()?;
-        Ok(())
+    pub fn add_handler(&mut self, mime: Mime, handler: Handler) {
+        self.default_apps
+            .entry(mime)
+            .or_default()
+            .push_back(handler);
     }
-    pub fn set_handler(&mut self, mime: Mime, handler: Handler) -> Result<()> {
-        self.default_apps.insert(mime, {
-            let mut handlers = VecDeque::with_capacity(1);
-            handlers.push_back(handler);
-            handlers
-        });
-        self.save()?;
-        Ok(())
+
+    pub fn set_handler(&mut self, mime: Mime, handler: Handler) {
+        self.default_apps.insert(mime, vec![handler].into());
     }
+
     pub fn remove_handler(&mut self, mime: &Mime) -> Result<()> {
         if let Some(_removed) = self.default_apps.remove(mime) {
             self.save()?;
@@ -42,11 +39,20 @@ impl MimeApps {
 
         Ok(())
     }
-    pub fn get_handler(&self, mime: &Mime) -> Result<Handler> {
-        let config = crate::config::Config::load()?;
 
+    pub fn get_handler(&self, mime: &Mime) -> Result<Handler> {
+        self.get_handler_from_user(mime)
+            .or_else(|_| {
+                let wildcard =
+                    Mime::from_str(&format!("{}/*", mime.type_())).unwrap();
+                self.get_handler_from_user(&wildcard)
+            })
+            .or_else(|_| self.get_handler_from_added_associations(mime))
+    }
+
+    fn get_handler_from_user(&self, mime: &Mime) -> Result<Handler> {
         match self.default_apps.get(mime) {
-            Some(handlers) if config.enable_selector && handlers.len() > 1 => {
+            Some(handlers) if CONFIG.enable_selector && handlers.len() > 1 => {
                 let handlers = handlers
                     .into_iter()
                     .map(|h| (h, h.get_entry().unwrap().name))
@@ -54,7 +60,7 @@ impl MimeApps {
 
                 let handler = {
                     let name =
-                        config.select(handlers.iter().map(|h| h.1.clone()))?;
+                        CONFIG.select(handlers.iter().map(|h| h.1.clone()))?;
 
                     handlers
                         .into_iter()
@@ -67,21 +73,21 @@ impl MimeApps {
                 Ok(handler)
             }
             Some(handlers) => Ok(handlers.get(0).unwrap().clone()),
-            None => match self
-                .added_associations
-                .get(mime)
-                .map(|h| h.get(0).unwrap().clone())
-                .or_else(|| self.system_apps.get_handler(mime))
-                .ok_or(Error::NotFound(mime.to_string()))
-            {
-                Ok(h) => Ok(h),
-                Err(Error::NotFound(_)) if mime.type_() == "text" => self
-                    .get_handler(&mime::TEXT_PLAIN)
-                    .map_err(|_| Error::NotFound(mime.to_string())),
-                Err(e) => Err(e),
-            },
+            None => Err(Error::NotFound(mime.to_string())),
         }
     }
+
+    fn get_handler_from_added_associations(
+        &self,
+        mime: &Mime,
+    ) -> Result<Handler> {
+        self.added_associations
+            .get(mime)
+            .map(|h| h.get(0).unwrap().clone())
+            .or_else(|| self.system_apps.get_handler(mime))
+            .ok_or(Error::NotFound(mime.to_string()))
+    }
+
     pub fn show_handler(&self, mime: &Mime, output_json: bool) -> Result<()> {
         let handler = self.get_handler(mime)?;
         let output = if output_json {
@@ -104,7 +110,16 @@ impl MimeApps {
         Ok(config)
     }
     pub fn read() -> Result<Self> {
-        let raw_conf = std::fs::read_to_string(Self::path()?)?;
+        let raw_conf = {
+            let mut buf = String::new();
+            std::fs::OpenOptions::new()
+                .write(true)
+                .create(true)
+                .read(true)
+                .open(Self::path()?)?
+                .read_to_string(&mut buf)?;
+            buf
+        };
         let file = Self::parse(Rule::file, &raw_conf)?.next().unwrap();
 
         let mut current_section_name = "".to_string();
@@ -165,6 +180,7 @@ impl MimeApps {
 
         let f = std::fs::OpenOptions::new()
             .read(true)
+            .create(true)
             .write(true)
             .truncate(true)
             .open(Self::path()?)?;
@@ -222,6 +238,46 @@ impl MimeApps {
                 stdout.write_all(e.name.as_bytes()).unwrap();
                 stdout.write_all(b"\n").unwrap();
             });
+
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn wildcard_mimes() -> Result<()> {
+        let mut user_apps = MimeApps::default();
+        user_apps.add_handler(
+            Mime::from_str("video/*").unwrap(),
+            Handler::assume_valid("mpv.desktop".into()),
+        );
+        user_apps.add_handler(
+            Mime::from_str("video/webm").unwrap(),
+            Handler::assume_valid("brave.desktop".into()),
+        );
+
+        assert_eq!(
+            user_apps
+                .get_handler(&Mime::from_str("video/mp4")?)?
+                .to_string(),
+            "mpv.desktop"
+        );
+        assert_eq!(
+            user_apps
+                .get_handler(&Mime::from_str("video/asdf")?)?
+                .to_string(),
+            "mpv.desktop"
+        );
+
+        assert_eq!(
+            user_apps
+                .get_handler(&Mime::from_str("video/webm")?)?
+                .to_string(),
+            "brave.desktop"
+        );
 
         Ok(())
     }

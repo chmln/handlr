@@ -18,8 +18,8 @@ impl MimeType {
             [m] if m == &mime::APPLICATION_OCTET_STREAM => {
                 Err(Error::Ambiguous(ext.into()))
             }
-            [] => unreachable!(),
             [guess, ..] => Ok(guess.clone()),
+            [] => unreachable!(),
         }
     }
 }
@@ -28,17 +28,16 @@ impl TryFrom<&str> for MimeType {
     type Error = Error;
 
     fn try_from(arg: &str) -> Result<Self> {
-        if let Ok(url) = url::Url::parse(arg) {
-            if url.scheme() == "file" {
-                return Self::try_from(url.path())
+        match url::Url::parse(arg) {
+            Ok(url) if url.scheme() == "file" => {
+                Self::try_from(&*PathBuf::from(url.path()))
             }
-            Ok(Self(
+            Ok(url) => Ok(Self(
                 format!("x-scheme-handler/{}", url.scheme())
                     .parse::<Mime>()
                     .unwrap(),
-            ))
-        } else {
-            Self::try_from(&*PathBuf::from(arg))
+            )),
+            Err(_) => Self::try_from(&*PathBuf::from(arg)),
         }
     }
 }
@@ -46,17 +45,29 @@ impl TryFrom<&str> for MimeType {
 impl TryFrom<&Path> for MimeType {
     type Error = Error;
     fn try_from(path: &Path) -> Result<Self> {
-        match xdg_mime::SharedMimeInfo::new()
-            .guess_mime_type()
-            .path(&path)
-            .guess()
-            .mime_type()
-        {
-            guess if guess == &mime::APPLICATION_OCTET_STREAM => {
-                Err(Error::Ambiguous(path.to_owned()))
+        use mime::APPLICATION_OCTET_STREAM as UNKNOWN;
+        let db = xdg_mime::SharedMimeInfo::new();
+
+        let name_guess = || match path.file_name() {
+            Some(f) => db.get_mime_types_from_file_name(&f.to_string_lossy())
+                [0]
+            .clone(),
+            None => UNKNOWN,
+        };
+
+        let content_guess = db.guess_mime_type().path(&path).guess();
+
+        let mime = match (name_guess(), content_guess.mime_type().clone()) {
+            (m1, m2) if m1 == UNKNOWN && m2 == UNKNOWN => {
+                return Err(Error::Ambiguous(path.to_owned()))
             }
-            guess => Ok(Self(guess.clone())),
-        }
+            (m1, m2) if m1 == UNKNOWN => m2,
+            (m1, m2) if m2 == UNKNOWN => m1,
+            (m1, m2) if m1 != m2 => m2,
+            (m1, _) => m1,
+        };
+
+        Ok(Self(mime.clone()))
     }
 }
 
@@ -107,6 +118,12 @@ mod tests {
             "application/x-shellscript"
         );
 
+        Ok(())
+    }
+
+    #[test]
+    fn filename_priority() -> Result<()> {
+        assert_eq!(MimeType::try_from("./tests/p.html")?.0, "text/html");
         Ok(())
     }
 

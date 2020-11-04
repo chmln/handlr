@@ -1,4 +1,6 @@
+use config::CONFIG;
 use error::{Error, Result};
+use once_cell::sync::Lazy;
 
 mod apps;
 mod cli;
@@ -12,16 +14,20 @@ fn main() -> Result<()> {
     use common::MimeType;
     use std::convert::TryFrom;
 
+    // create config if it doesn't exist
+    Lazy::force(&CONFIG);
+
     let mut apps = apps::MimeApps::read()?;
-    crate::config::Config::load()?;
 
     let res = || -> Result<()> {
         match Cmd::parse() {
             Cmd::Set { mime, handler } => {
-                apps.set_handler(mime.0, handler)?;
+                apps.set_handler(mime.0, handler);
+                apps.save()?;
             }
             Cmd::Add { mime, handler } => {
-                apps.add_handler(mime.0, handler)?;
+                apps.add_handler(mime.0, handler);
+                apps.save()?;
             }
             Cmd::Launch { mime, args } => {
                 apps.get_handler(&mime.0)?.launch(args)?;

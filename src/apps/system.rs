@@ -5,7 +5,7 @@ use crate::{
 use mime::Mime;
 use std::{collections::HashMap, convert::TryFrom, ffi::OsStr};
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct SystemApps(pub HashMap<Mime, Vec<Handler>>);
 
 impl SystemApps {
