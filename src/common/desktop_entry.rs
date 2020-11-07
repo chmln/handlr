@@ -73,9 +73,8 @@ impl DesktopEntry {
         // If the entry expects a terminal (emulator), but this process is not running in one, we
         // launch a new one.
         if self.term && !atty::is(atty::Stream::Stdout) {
-            let terminal_emulator_args =
-                shlex::split(&CONFIG.terminal_emulator).unwrap();
-            split = terminal_emulator_args
+            split = shlex::split(&CONFIG.terminal_emulator)
+                .unwrap()
                 .into_iter()
                 .chain(split.into_iter())
                 .collect();

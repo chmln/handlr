@@ -42,32 +42,37 @@ impl TryFrom<&str> for MimeType {
     }
 }
 
+fn mime_to_option(mime: Mime) -> Option<Mime> {
+    if mime == mime::APPLICATION_OCTET_STREAM {
+        None
+    } else {
+        Some(mime)
+    }
+}
+
 impl TryFrom<&Path> for MimeType {
     type Error = Error;
     fn try_from(path: &Path) -> Result<Self> {
         use mime::APPLICATION_OCTET_STREAM as UNKNOWN;
         let db = xdg_mime::SharedMimeInfo::new();
 
-        let name_guess = || match path.file_name() {
+        let name_guess = mime_to_option(match path.file_name() {
             Some(f) => db.get_mime_types_from_file_name(&f.to_string_lossy())
                 [0]
             .clone(),
             None => UNKNOWN,
-        };
+        });
 
-        let content_guess = db.guess_mime_type().path(&path).guess();
+        let content_guess = mime_to_option({
+            let guess = db.guess_mime_type().path(&path).guess();
+            guess.mime_type().clone()
+        });
 
-        let mime = match (name_guess(), content_guess.mime_type().clone()) {
-            (m1, m2) if m1 == UNKNOWN && m2 == UNKNOWN => {
-                return Err(Error::Ambiguous(path.to_owned()))
-            }
-            (m1, m2) if m1 == UNKNOWN => m2,
-            (m1, m2) if m2 == UNKNOWN => m1,
-            (m1, m2) if m1 != m2 => m2,
-            (m1, _) => m1,
-        };
-
-        Ok(Self(mime.clone()))
+        Ok(Self(
+            name_guess
+                .or(content_guess)
+                .ok_or_else(|| Error::Ambiguous(path.to_owned()))?,
+        ))
     }
 }
 
@@ -123,7 +128,10 @@ mod tests {
 
     #[test]
     fn filename_priority() -> Result<()> {
-        assert_eq!(MimeType::try_from("./tests/p.html")?.0, "text/html");
+        assert_eq!(
+            MimeType::try_from("./tests/p.html")?.0,
+            "application/x-extension-html"
+        );
         Ok(())
     }
 
