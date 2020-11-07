@@ -3,20 +3,24 @@ use crate::{
     Result,
 };
 use mime::Mime;
-use std::{collections::HashMap, convert::TryFrom, ffi::OsStr};
+use std::{
+    collections::{HashMap, VecDeque},
+    convert::TryFrom,
+    ffi::OsStr,
+};
 
 #[derive(Debug, Default)]
-pub struct SystemApps(pub HashMap<Mime, Vec<Handler>>);
+pub struct SystemApps(pub HashMap<Mime, VecDeque<Handler>>);
 
 impl SystemApps {
-    pub fn get_handlers(&self, mime: &Mime) -> Option<Vec<Handler>> {
+    pub fn get_handlers(&self, mime: &Mime) -> Option<VecDeque<Handler>> {
         Some(self.0.get(mime)?.clone())
     }
     pub fn get_handler(&self, mime: &Mime) -> Option<Handler> {
         Some(self.get_handlers(mime)?.get(0).unwrap().clone())
     }
     pub fn populate() -> Result<Self> {
-        let mut map = HashMap::<Mime, Vec<Handler>>::with_capacity(50);
+        let mut map = HashMap::<Mime, VecDeque<Handler>>::with_capacity(50);
 
         xdg::BaseDirectories::new()?
             .get_data_dirs()
@@ -35,9 +39,9 @@ impl SystemApps {
                     .for_each(|entry| {
                         let (file_name, mimes) = (entry.file_name, entry.mimes);
                         mimes.into_iter().for_each(|mime| {
-                            map.entry(mime)
-                                .or_default()
-                                .push(Handler::assume_valid(file_name.clone()));
+                            map.entry(mime).or_default().push_back(
+                                Handler::assume_valid(file_name.clone()),
+                            );
                         });
                     });
             });

@@ -6,7 +6,10 @@ use crate::common::{Handler, MimeOrExtension};
 #[clap(version = clap::crate_version!())]
 pub enum Cmd {
     /// List default apps and the associated handlers
-    List,
+    List {
+        #[clap(long, short)]
+        all: bool,
+    },
 
     /// Open a path/URL with its default handler
     Open {

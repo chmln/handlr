@@ -205,17 +205,30 @@ impl MimeApps {
         writer.flush()?;
         Ok(())
     }
-    pub fn print(&self) -> Result<()> {
+    pub fn print(&self, detailed: bool) -> Result<()> {
         use itertools::Itertools;
 
-        let rows = self
-            .default_apps
-            .iter()
-            .sorted()
-            .map(|(k, v)| vec![k.to_string(), v.iter().join(", ")])
-            .collect::<Vec<_>>();
+        let to_rows = |map: &HashMap<Mime, VecDeque<Handler>>| {
+            map.iter()
+                .sorted()
+                .map(|(k, v)| vec![k.to_string(), v.iter().join(", ")])
+                .collect::<Vec<_>>()
+        };
 
-        ascii_table::AsciiTable::default().print(rows);
+        let table = ascii_table::AsciiTable::default();
+
+        if detailed {
+            println!("Default Apps");
+            table.print(to_rows(&self.default_apps));
+            if !self.added_associations.is_empty() {
+                println!("Added Associations");
+                table.print(to_rows(&self.added_associations));
+            }
+            println!("System Apps");
+            table.print(to_rows(&self.system_apps.0));
+        } else {
+            table.print(to_rows(&self.default_apps));
+        }
 
         Ok(())
     }
