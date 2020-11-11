@@ -17,8 +17,8 @@ impl Default for Config {
         // This seems repetitive but serde does not uses Default
         Config {
             enable_selector: false,
-            selector: std::env::var("TERMINAL").unwrap_or("xterm -e".into()),
-            terminal_emulator: "rofi -dmenu -p 'Open With: '".into(),
+            selector: "rofi -dmenu -p 'Open With: '".into(),
+            terminal_emulator: std::env::var("TERMINAL").unwrap_or("xterm -e".into()),
         }
     }
 }
