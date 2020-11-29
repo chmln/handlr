@@ -11,8 +11,9 @@ mod error;
 fn main() -> Result<()> {
     use clap::Clap;
     use cli::Cmd;
-    use common::MimeType;
+    use common::{MimeType, Handler};
     use std::convert::TryFrom;
+    use std::collections::HashMap;
 
     // create config if it doesn't exist
     Lazy::force(&CONFIG);
@@ -36,8 +37,15 @@ fn main() -> Result<()> {
                 apps.show_handler(&mime.0, json)?;
             }
             Cmd::Open { paths } => {
-                let mime = MimeType::try_from(paths[0].as_str())?.0;
-                apps.get_handler(&mime)?.open(paths)?;
+                let mut handlers: HashMap<Handler, Vec<String>> = HashMap::new();
+                for path in paths.into_iter() {
+                    let mime = MimeType::try_from(path.as_str())?.0;
+                    let handler = apps.get_handler(&mime)?;
+                    handlers.entry(handler).or_insert(Vec::new()).push(path);
+                }
+                for (handler, handled_paths) in handlers.into_iter() {
+                    handler.open(handled_paths)?;
+                }
             }
             Cmd::List { all } => {
                 apps.print(all)?;
