@@ -127,15 +127,6 @@ mod tests {
     }
 
     #[test]
-    fn filename_priority() -> Result<()> {
-        assert_eq!(
-            MimeType::try_from("./tests/p.html")?.0,
-            "application/x-extension-html"
-        );
-        Ok(())
-    }
-
-    #[test]
     fn from_ext() -> Result<()> {
         assert_eq!(".mp3".parse::<MimeOrExtension>()?.0, "audio/mpeg");
         assert_eq!("audio/mpeg".parse::<MimeOrExtension>()?.0, "audio/mpeg");
