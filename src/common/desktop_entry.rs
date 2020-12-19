@@ -48,7 +48,7 @@ impl DesktopEntry {
         };
 
         if self.term {
-            cmd.status()?;
+            cmd.spawn()?;
         } else {
             cmd.stdout(Stdio::null()).stderr(Stdio::null()).spawn()?;
         };
