@@ -53,26 +53,14 @@ fn mime_to_option(mime: Mime) -> Option<Mime> {
 impl TryFrom<&Path> for MimeType {
     type Error = Error;
     fn try_from(path: &Path) -> Result<Self> {
-        use mime::APPLICATION_OCTET_STREAM as UNKNOWN;
         let db = xdg_mime::SharedMimeInfo::new();
 
-        let name_guess = mime_to_option(match path.file_name() {
-            Some(f) => db.get_mime_types_from_file_name(&f.to_string_lossy())
-                [0]
-            .clone(),
-            None => UNKNOWN,
-        });
+        let guess = db.guess_mime_type().path(&path).guess();
 
-        let content_guess = mime_to_option({
-            let guess = db.guess_mime_type().path(&path).guess();
-            guess.mime_type().clone()
-        });
+        let mime = mime_to_option(guess.mime_type().clone())
+            .ok_or_else(|| Error::Ambiguous(path.to_owned()))?;
 
-        Ok(Self(
-            name_guess
-                .or(content_guess)
-                .ok_or_else(|| Error::Ambiguous(path.to_owned()))?,
-        ))
+        Ok(Self(mime))
     }
 }
 
@@ -121,6 +109,10 @@ mod tests {
         assert_eq!(
             MimeType::try_from("./tests/cat")?.0,
             "application/x-shellscript"
+        );
+        assert_eq!(
+            MimeType::try_from("./tests/SettingsWidgetFdoSecrets.ui")?.0,
+            "application/x-designer"
         );
 
         Ok(())
