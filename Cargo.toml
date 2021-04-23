@@ -1,6 +1,6 @@
 [package]
 name = "handlr"
-version = "0.6.0"
+version = "0.6.1"
 authors = ["Gregory <gregory.mkv@gmail.com>"]
 edition = "2018"
 license = "MIT"
