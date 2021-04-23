@@ -7,8 +7,8 @@ Manage your default applications with ease using `handlr`!
 - Set default handler by extension or mime-type
 - Intelligent mime type detection from files based on extension and content
 - Open multiple files at once
-- Set multiple handlers for mime/extension and use rofi/dmenu to pick one
-- List default associations
+- Set multiple handlers for mime/extension and use `rofi`/`dmenu` to pick one
+- Wildcard support like `text/*`
 - Automatically removes invalid/wrong `.desktop` entries from `mimeapps.list`
 - Helper commands like `launch`, `get --json` for your scripting needs
 - Unnecessarily fast (written in Rust)
@@ -23,6 +23,9 @@ handlr open https://google.ca
 
 # Set default handler for png files
 handlr set .png feh.desktop
+
+# Set wildcard handler for all text files
+handlr set 'text/*' nvim.desktop
 
 # Set default handler based on mime
 handlr set application/pdf evince.desktop
@@ -39,13 +42,26 @@ handlr launch x-scheme-handler/https -- https://google.ca
 ```
 
 ## Compared to `xdg-utils`
+
 - Can open multiple files/URLs at once
 - Can have multiple handlers and use rofi/dmenu to pick one at runtime
 - Far easier to use with simple commands like `get`, `set`, `list`
 - Can operate on extensions, **no need to look up or remember mime types**
   - useful for common tasks like setting a handler for png/docx/etc files
 - Superb autocomplete (currently just fish), including mimes, extensions, and `.desktop` files
-- Optional json output for commands like `get`
+- Optional json output for scripting
+- Properly supports `Terminal=true` entries
+
+## Setting default terminal 
+
+Unfortunately, there isn't an XDG spec and thus a standardized way for `handlr` to get your default terminal emulator to run `Terminal=true` desktop entries. There was a proposal floating around a few years ago to use `x-scheme-handler/terminal` for this purpose. It seems to me the least worst option, compared to handling quirks of N+1 distros or using a handlr-specific config option. 
+
+Because most users will not have this handler set up, `handlr` will:
+1. Find an app with `TerminalEmulator` category
+2. Set it as the default for `x-scheme-handler/terminal`
+3. Send you a notification to let you know it guessed your terminal and provide instructions to change it if necessary
+
+On the upside, `Terminal=true` entries will now work outside of interactive terminals, unlike `xdg-utils`.
 
 ## Setting multiple handlers
 
