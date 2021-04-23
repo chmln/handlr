@@ -6,10 +6,10 @@ use mime::Mime;
 use std::{
     collections::{HashMap, VecDeque},
     convert::TryFrom,
-    ffi::OsStr,
+    ffi::OsString,
 };
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct SystemApps(pub HashMap<Mime, VecDeque<Handler>>);
 
 impl SystemApps {
@@ -19,32 +19,34 @@ impl SystemApps {
     pub fn get_handler(&self, mime: &Mime) -> Option<Handler> {
         Some(self.get_handlers(mime)?.get(0).unwrap().clone())
     }
+
+    pub fn get_entries(
+    ) -> Result<impl Iterator<Item = (OsString, DesktopEntry)>> {
+        Ok(xdg::BaseDirectories::new()?
+            .list_data_files_once("applications")
+            .into_iter()
+            .filter(|p| {
+                p.extension().map(|x| x.to_str()).flatten() == Some("desktop")
+            })
+            .filter_map(|p| {
+                Some((
+                    p.file_name().unwrap().to_owned(),
+                    DesktopEntry::try_from(p.clone()).ok()?,
+                ))
+            }))
+    }
+
     pub fn populate() -> Result<Self> {
         let mut map = HashMap::<Mime, VecDeque<Handler>>::with_capacity(50);
 
-        xdg::BaseDirectories::new()?
-            .get_data_dirs()
-            .into_iter()
-            .map(|mut data_dir| {
-                data_dir.push("applications");
-                data_dir
-            })
-            .filter_map(|data_dir| std::fs::read_dir(data_dir).ok())
-            .for_each(|dir| {
-                dir.filter_map(Result::ok)
-                    .filter(|p| {
-                        p.path().extension() == Some(OsStr::new("desktop"))
-                    })
-                    .filter_map(|p| DesktopEntry::try_from(p.path()).ok())
-                    .for_each(|entry| {
-                        let (file_name, mimes) = (entry.file_name, entry.mimes);
-                        mimes.into_iter().for_each(|mime| {
-                            map.entry(mime).or_default().push_back(
-                                Handler::assume_valid(file_name.clone()),
-                            );
-                        });
-                    });
+        Self::get_entries()?.for_each(|(_, entry)| {
+            let (file_name, mimes) = (entry.file_name, entry.mimes);
+            mimes.into_iter().for_each(|mime| {
+                map.entry(mime)
+                    .or_default()
+                    .push_back(Handler::assume_valid(file_name.clone()));
             });
+        });
 
         Ok(Self(map))
     }

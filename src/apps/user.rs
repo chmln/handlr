@@ -1,9 +1,6 @@
-use crate::{
-    apps::SystemApps,
-    common::{DesktopEntry, Handler},
-    Error, Result, CONFIG,
-};
+use crate::{apps::SystemApps, common::Handler, Error, Result, CONFIG};
 use mime::Mime;
+use once_cell::sync::Lazy;
 use pest::Parser;
 use std::{
     collections::{HashMap, VecDeque},
@@ -12,7 +9,9 @@ use std::{
     str::FromStr,
 };
 
-#[derive(Debug, Default, pest_derive::Parser)]
+pub static APPS: Lazy<MimeApps> = Lazy::new(|| MimeApps::read().unwrap());
+
+#[derive(Debug, Default, Clone, pest_derive::Parser)]
 #[grammar = "common/ini.pest"]
 pub struct MimeApps {
     added_associations: HashMap<Mime, VecDeque<Handler>>,
@@ -232,25 +231,18 @@ impl MimeApps {
 
         Ok(())
     }
-    pub fn list_handlers(&self) -> Result<()> {
-        use std::{convert::TryFrom, io::Write, os::unix::ffi::OsStrExt};
+    pub fn list_handlers() -> Result<()> {
+        use std::{io::Write, os::unix::ffi::OsStrExt};
 
         let stdout = std::io::stdout();
         let mut stdout = stdout.lock();
 
-        xdg::BaseDirectories::new()?
-            .list_data_files_once("applications")
-            .into_iter()
-            .filter(|p| {
-                p.extension().map(|x| x.to_str()).flatten() == Some("desktop")
-            })
-            .filter_map(|p| DesktopEntry::try_from(p).ok())
-            .for_each(|e| {
-                stdout.write_all(e.file_name.as_bytes()).unwrap();
-                stdout.write_all(b"\t").unwrap();
-                stdout.write_all(e.name.as_bytes()).unwrap();
-                stdout.write_all(b"\n").unwrap();
-            });
+        SystemApps::get_entries()?.for_each(|(_, e)| {
+            stdout.write_all(e.file_name.as_bytes()).unwrap();
+            stdout.write_all(b"\t").unwrap();
+            stdout.write_all(e.name.as_bytes()).unwrap();
+            stdout.write_all(b"\n").unwrap();
+        });
 
         Ok(())
     }

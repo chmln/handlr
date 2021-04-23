@@ -7,18 +7,18 @@ mod cli;
 mod common;
 mod config;
 mod error;
+mod utils;
 
 fn main() -> Result<()> {
     use clap::Clap;
     use cli::Cmd;
-    use common::{MimeType, Handler};
-    use std::convert::TryFrom;
-    use std::collections::HashMap;
+    use common::{Handler, MimeType};
+    use std::{collections::HashMap, convert::TryFrom};
 
     // create config if it doesn't exist
     Lazy::force(&CONFIG);
 
-    let mut apps = apps::MimeApps::read()?;
+    let mut apps = (*apps::APPS).clone();
 
     let res = || -> Result<()> {
         match Cmd::parse() {
@@ -37,7 +37,8 @@ fn main() -> Result<()> {
                 apps.show_handler(&mime.0, json)?;
             }
             Cmd::Open { paths } => {
-                let mut handlers: HashMap<Handler, Vec<String>> = HashMap::new();
+                let mut handlers: HashMap<Handler, Vec<String>> =
+                    HashMap::new();
                 for path in paths.into_iter() {
                     let mime = MimeType::try_from(path.as_str())?.0;
                     let handler = apps.get_handler(&mime)?;
@@ -58,7 +59,7 @@ fn main() -> Result<()> {
                 mimes,
             } => {
                 if desktop_files {
-                    apps.list_handlers()?;
+                    apps::MimeApps::list_handlers()?;
                 } else if mimes {
                     common::db_autocomplete()?;
                 }
@@ -76,9 +77,7 @@ fn main() -> Result<()> {
             std::process::exit(1);
         }
         (Err(e), false) => {
-            std::process::Command::new("notify-send")
-                .args(&["handlr error", &e.to_string()])
-                .spawn()?;
+            utils::notify("handlr error", &e.to_string())?;
             std::process::exit(1);
         }
         _ => Ok(()),

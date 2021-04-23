@@ -1,6 +1,8 @@
-use crate::{Error, Result, CONFIG};
+use crate::{Error, Result};
+use aho_corasick::AhoCorasick;
 use mime::Mime;
 use std::{
+    collections::HashMap,
     convert::TryFrom,
     ffi::OsString,
     path::{Path, PathBuf},
@@ -15,6 +17,7 @@ pub struct DesktopEntry {
     pub(crate) file_name: OsString,
     pub(crate) term: bool,
     pub(crate) mimes: Vec<Mime>,
+    pub(crate) categories: HashMap<String, ()>,
 }
 
 #[derive(PartialEq, Eq, Copy, Clone)]
@@ -47,25 +50,35 @@ impl DesktopEntry {
             cmd
         };
 
-        if self.term {
-            cmd.spawn()?;
+        if self.term && atty::is(atty::Stream::Stdout) {
+            cmd.spawn()?.wait()?;
         } else {
             cmd.stdout(Stdio::null()).stderr(Stdio::null()).spawn()?;
-        };
+        }
 
         Ok(())
     }
     pub fn get_cmd(&self, args: Vec<String>) -> Result<(String, Vec<String>)> {
-        let special = regex::Regex::new("%(f|F|u|U)").unwrap();
+        let cmd_patterns = &["%f", "%F", "%u", "%U"];
+        let special = AhoCorasick::new_auto_configured(cmd_patterns);
 
         let mut split = shlex::split(&self.exec)
             .unwrap()
             .into_iter()
             .flat_map(|s| match s.as_str() {
                 "%f" | "%F" | "%u" | "%U" => args.clone(),
-                s if special.is_match(s) => vec![special
-                    .replace_all(s, args.clone().join(" ").as_str())
-                    .into()],
+                s if special.is_match(s) => vec![{
+                    let mut replaced = String::with_capacity(s.len());
+                    special.replace_all_with(
+                        s,
+                        &mut replaced,
+                        |_, _, dst| {
+                            dst.push_str(args.clone().join(" ").as_str());
+                            false
+                        },
+                    );
+                    replaced
+                }],
                 _ => vec![s],
             })
             .collect::<Vec<_>>();
@@ -73,7 +86,7 @@ impl DesktopEntry {
         // If the entry expects a terminal (emulator), but this process is not running in one, we
         // launch a new one.
         if self.term && !atty::is(atty::Stream::Stdout) {
-            split = shlex::split(&CONFIG.terminal_emulator)
+            split = shlex::split(&crate::config::Config::terminal()?)
                 .unwrap()
                 .into_iter()
                 .chain(split.into_iter())
@@ -108,6 +121,15 @@ fn parse_file(path: &Path) -> Option<DesktopEntry> {
                 entry.mimes = mimes;
             }
             "Terminal" => entry.term = attr.value.unwrap() == "true",
+            "Categories" => {
+                entry.categories = attr
+                    .value
+                    .unwrap()
+                    .split(";")
+                    .filter(|s| !s.is_empty())
+                    .map(|cat| (cat.to_owned(), ()))
+                    .collect();
+            }
             _ => {}
         }
     }
