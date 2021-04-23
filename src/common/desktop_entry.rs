@@ -15,7 +15,7 @@ pub struct DesktopEntry {
     pub(crate) name: String,
     pub(crate) exec: String,
     pub(crate) file_name: OsString,
-    pub(crate) term: bool,
+    pub(crate) terminal: bool,
     pub(crate) mimes: Vec<Mime>,
     pub(crate) categories: HashMap<String, ()>,
 }
@@ -42,15 +42,15 @@ impl DesktopEntry {
 
         Ok(())
     }
-    fn exec_inner(&self, arg: Vec<String>) -> Result<()> {
+    fn exec_inner(&self, args: Vec<String>) -> Result<()> {
         let mut cmd = {
-            let (cmd, args) = self.get_cmd(arg)?;
+            let (cmd, args) = self.get_cmd(args)?;
             let mut cmd = Command::new(cmd);
             cmd.args(args);
             cmd
         };
 
-        if self.term && atty::is(atty::Stream::Stdout) {
+        if self.terminal && atty::is(atty::Stream::Stdout) {
             cmd.spawn()?.wait()?;
         } else {
             cmd.stdout(Stdio::null()).stderr(Stdio::null()).spawn()?;
@@ -69,14 +69,10 @@ impl DesktopEntry {
                 "%f" | "%F" | "%u" | "%U" => args.clone(),
                 s if special.is_match(s) => vec![{
                     let mut replaced = String::with_capacity(s.len());
-                    special.replace_all_with(
-                        s,
-                        &mut replaced,
-                        |_, _, dst| {
-                            dst.push_str(args.clone().join(" ").as_str());
-                            false
-                        },
-                    );
+                    special.replace_all_with(s, &mut replaced, |_, _, dst| {
+                        dst.push_str(args.clone().join(" ").as_str());
+                        false
+                    });
                     replaced
                 }],
                 _ => vec![s],
@@ -85,7 +81,7 @@ impl DesktopEntry {
 
         // If the entry expects a terminal (emulator), but this process is not running in one, we
         // launch a new one.
-        if self.term && !atty::is(atty::Stream::Stdout) {
+        if self.terminal && !atty::is(atty::Stream::Stdout) {
             split = shlex::split(&crate::config::Config::terminal()?)
                 .unwrap()
                 .into_iter()
@@ -120,7 +116,7 @@ fn parse_file(path: &Path) -> Option<DesktopEntry> {
                 mimes.pop();
                 entry.mimes = mimes;
             }
-            "Terminal" => entry.term = attr.value.unwrap() == "true",
+            "Terminal" => entry.terminal = attr.value.unwrap() == "true",
             "Categories" => {
                 entry.categories = attr
                     .value
