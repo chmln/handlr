@@ -29,7 +29,7 @@ pub enum Cmd {
     /// Launch the handler for specified extension/mime with optional arguments
     Launch {
         mime: MimeOrExtension,
-        args: Vec<String>,
+        args: Vec<UserPath>,
     },
 
     /// Get handler for this mime/extension

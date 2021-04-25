@@ -12,8 +12,8 @@ mod utils;
 fn main() -> Result<()> {
     use clap::Clap;
     use cli::Cmd;
-    use common::{Handler};
-    use std::{collections::HashMap};
+    use common::Handler;
+    use std::collections::HashMap;
 
     // create config if it doesn't exist
     Lazy::force(&CONFIG);
@@ -31,7 +31,7 @@ fn main() -> Result<()> {
                 apps.save()?;
             }
             Cmd::Launch { mime, args } => {
-                apps.get_handler(&mime.0)?.launch(args)?;
+                apps.get_handler(&mime.0)?.launch(args.into_iter().map(|a| a.to_string()).collect())?;
             }
             Cmd::Get { mime, json } => {
                 apps.show_handler(&mime.0, json)?;
