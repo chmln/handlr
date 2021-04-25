@@ -85,6 +85,7 @@ impl DesktopEntry {
             split = shlex::split(&crate::config::Config::terminal()?)
                 .unwrap()
                 .into_iter()
+                .chain(vec!["-e".to_owned()])
                 .chain(split.into_iter())
                 .collect();
         }
