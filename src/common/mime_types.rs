@@ -2,7 +2,7 @@ use crate::{Error, Result};
 use mime::Mime;
 use std::{
     convert::TryFrom,
-    path::{Path, PathBuf},
+    path::{Path},
     str::FromStr,
 };
 
@@ -30,14 +30,14 @@ impl TryFrom<&str> for MimeType {
     fn try_from(arg: &str) -> Result<Self> {
         match url::Url::parse(arg) {
             Ok(url) if url.scheme() == "file" => {
-                Self::try_from(&*PathBuf::from(url.path()))
+                Self::try_from(Path::new(url.path()))
             }
             Ok(url) => Ok(Self(
                 format!("x-scheme-handler/{}", url.scheme())
                     .parse::<Mime>()
                     .unwrap(),
             )),
-            Err(_) => Self::try_from(&*PathBuf::from(arg)),
+            Err(_) => Self::try_from(Path::new(arg)),
         }
     }
 }

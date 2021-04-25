@@ -39,13 +39,23 @@ fn main() -> Result<()> {
             Cmd::Open { paths } => {
                 let mut handlers: HashMap<Handler, Vec<String>> =
                     HashMap::new();
+
                 for path in paths.into_iter() {
+                    let path = match url::Url::parse(&path) {
+                        Ok(url) if url.scheme() == "file" => {
+                            url.path().to_owned()
+                        }
+                        _ => path,
+                    };
+
                     let mime = MimeType::try_from(path.as_str())?.0;
                     let handler = apps.get_handler(&mime)?;
-                    handlers.entry(handler).or_insert(Vec::new()).push(path);
+
+                    handlers.entry(handler).or_default().push(path);
                 }
-                for (handler, handled_paths) in handlers.into_iter() {
-                    handler.open(handled_paths)?;
+
+                for (handler, paths) in handlers.into_iter() {
+                    handler.open(paths)?;
                 }
             }
             Cmd::List { all } => {
