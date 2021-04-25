@@ -91,10 +91,12 @@ impl MimeApps {
         let handler = self.get_handler(mime)?;
         let output = if output_json {
             let entry = handler.get_entry()?;
+            let cmd = entry.get_cmd(vec![])?;
+
             (json::object! {
                 handler: handler.to_string(),
                 name: entry.name.as_str(),
-                cmd: entry.get_cmd(vec![])?.0
+                cmd: cmd.0 + " " + &cmd.1.join(" "),
             })
             .to_string()
         } else {

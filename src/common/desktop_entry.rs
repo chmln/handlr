@@ -59,38 +59,50 @@ impl DesktopEntry {
         Ok(())
     }
     pub fn get_cmd(&self, args: Vec<String>) -> Result<(String, Vec<String>)> {
-        let cmd_patterns = &["%f", "%F", "%u", "%U"];
-        let special = AhoCorasick::new_auto_configured(cmd_patterns);
+        let special =
+            AhoCorasick::new_auto_configured(&["%f", "%F", "%u", "%U"]);
 
-        let mut split = shlex::split(&self.exec)
-            .unwrap()
-            .into_iter()
-            .flat_map(|s| match s.as_str() {
-                "%f" | "%F" | "%u" | "%U" => args.clone(),
-                s if special.is_match(s) => vec![{
-                    let mut replaced = String::with_capacity(s.len());
-                    special.replace_all_with(s, &mut replaced, |_, _, dst| {
-                        dst.push_str(args.clone().join(" ").as_str());
-                        false
-                    });
-                    replaced
-                }],
-                _ => vec![s],
-            })
-            .collect::<Vec<_>>();
+        let mut exec = shlex::split(&self.exec).unwrap();
+
+        // The desktop entry doesn't contain arguments - we make best effort and append them at
+        // the end
+        if special.is_match(&self.exec) {
+            exec = exec
+                .into_iter()
+                .flat_map(|s| match s.as_str() {
+                    "%f" | "%F" | "%u" | "%U" => args.clone(),
+                    s if special.is_match(s) => vec![{
+                        let mut replaced =
+                            String::with_capacity(s.len() + args.len() * 2);
+                        special.replace_all_with(
+                            s,
+                            &mut replaced,
+                            |_, _, dst| {
+                                dst.push_str(args.clone().join(" ").as_str());
+                                false
+                            },
+                        );
+                        replaced
+                    }],
+                    _ => vec![s],
+                })
+                .collect()
+        } else {
+            exec.extend_from_slice(&args);
+        }
 
         // If the entry expects a terminal (emulator), but this process is not running in one, we
         // launch a new one.
         if self.terminal && !atty::is(atty::Stream::Stdout) {
-            split = shlex::split(&crate::config::Config::terminal()?)
+            exec = shlex::split(&crate::config::Config::terminal()?)
                 .unwrap()
                 .into_iter()
                 .chain(vec!["-e".to_owned()])
-                .chain(split.into_iter())
+                .chain(exec)
                 .collect();
         }
 
-        Ok((split.remove(0), split))
+        Ok((exec.remove(0), exec))
     }
 }
 

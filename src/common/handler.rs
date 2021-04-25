@@ -2,18 +2,18 @@ use crate::{
     common::{DesktopEntry, ExecMode},
     Error, Result,
 };
-use std::{convert::TryFrom, ffi::OsString, path::PathBuf};
+use std::{fmt::Display, convert::TryFrom, ffi::OsString, path::PathBuf, str::FromStr};
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Handler(OsString);
 
-impl std::fmt::Display for Handler {
+impl Display for Handler {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(&self.0.to_string_lossy())
     }
 }
 
-impl std::str::FromStr for Handler {
+impl FromStr for Handler {
     type Err = Error;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         Self::resolve(s.into())

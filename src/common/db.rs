@@ -4,6 +4,7 @@ static CUSTOM_MIMES: &[&'static str] = &[
     "inode/directory",
     "x-scheme-handler/http",
     "x-scheme-handler/https",
+    "x-scheme-handler/terminal",
 ];
 
 pub fn autocomplete() -> Result<()> {

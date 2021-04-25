@@ -1,4 +1,4 @@
-use crate::common::{Handler, MimeOrExtension};
+use crate::common::{Handler, MimeOrExtension, UserPath};
 
 #[derive(clap::Clap)]
 #[clap(global_setting = clap::AppSettings::DeriveDisplayOrder)]
@@ -14,7 +14,7 @@ pub enum Cmd {
     /// Open a path/URL with its default handler
     Open {
         #[clap(required = true)]
-        paths: Vec<String>,
+        paths: Vec<UserPath>,
     },
 
     /// Set the default handler for mime/extension

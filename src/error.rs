@@ -22,9 +22,10 @@ pub enum Error {
     Selector(String),
     #[error("selection cancelled")]
     Cancelled,
-
     #[error("Please specify the default terminal with handlr set x-scheme-handler/terminal")]
     NoTerminal,
+    #[error("Bad path: {0}")]
+    BadPath(String),
 }
 
 pub type Result<T, E = Error> = std::result::Result<T, E>;

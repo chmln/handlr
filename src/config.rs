@@ -54,8 +54,6 @@ impl Config {
                 );
                 apps.save().ok()?;
 
-
-
                 Some(entry.1)
             })
             .map(|e| e.exec)

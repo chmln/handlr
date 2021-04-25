@@ -12,8 +12,8 @@ mod utils;
 fn main() -> Result<()> {
     use clap::Clap;
     use cli::Cmd;
-    use common::{Handler, MimeType};
-    use std::{collections::HashMap, convert::TryFrom};
+    use common::{Handler};
+    use std::{collections::HashMap};
 
     // create config if it doesn't exist
     Lazy::force(&CONFIG);
@@ -41,17 +41,10 @@ fn main() -> Result<()> {
                     HashMap::new();
 
                 for path in paths.into_iter() {
-                    let path = match url::Url::parse(&path) {
-                        Ok(url) if url.scheme() == "file" => {
-                            url.path().to_owned()
-                        }
-                        _ => path,
-                    };
-
-                    let mime = MimeType::try_from(path.as_str())?.0;
-                    let handler = apps.get_handler(&mime)?;
-
-                    handlers.entry(handler).or_default().push(path);
+                    handlers
+                        .entry(apps.get_handler(&path.get_mime()?.0)?)
+                        .or_default()
+                        .push(path.to_string());
                 }
 
                 for (handler, paths) in handlers.into_iter() {

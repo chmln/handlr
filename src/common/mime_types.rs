@@ -1,10 +1,7 @@
 use crate::{Error, Result};
 use mime::Mime;
-use std::{
-    convert::TryFrom,
-    path::{Path},
-    str::FromStr,
-};
+use std::{convert::TryFrom, path::Path, str::FromStr};
+use url::Url;
 
 // A mime derived from a path or URL
 #[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
@@ -24,21 +21,26 @@ impl MimeType {
     }
 }
 
-impl TryFrom<&str> for MimeType {
-    type Error = Error;
+impl From<&Url> for MimeType {
+    fn from(url: &Url) -> Self {
+        Self(
+            format!("x-scheme-handler/{}", url.scheme())
+                .parse::<Mime>()
+                .unwrap(),
+        )
+    }
+}
 
-    fn try_from(arg: &str) -> Result<Self> {
-        match url::Url::parse(arg) {
-            Ok(url) if url.scheme() == "file" => {
-                Self::try_from(Path::new(url.path()))
-            }
-            Ok(url) => Ok(Self(
-                format!("x-scheme-handler/{}", url.scheme())
-                    .parse::<Mime>()
-                    .unwrap(),
-            )),
-            Err(_) => Self::try_from(Path::new(arg)),
-        }
+impl TryFrom<&Path> for MimeType {
+    type Error = Error;
+    fn try_from(path: &Path) -> Result<Self> {
+        let db = xdg_mime::SharedMimeInfo::new();
+        let guess = db.guess_mime_type().path(&path).guess();
+
+        let mime = mime_to_option(guess.mime_type().clone())
+            .ok_or_else(|| Error::Ambiguous(path.to_owned()))?;
+
+        Ok(Self(mime))
     }
 }
 
@@ -47,20 +49,6 @@ fn mime_to_option(mime: Mime) -> Option<Mime> {
         None
     } else {
         Some(mime)
-    }
-}
-
-impl TryFrom<&Path> for MimeType {
-    type Error = Error;
-    fn try_from(path: &Path) -> Result<Self> {
-        let db = xdg_mime::SharedMimeInfo::new();
-
-        let guess = db.guess_mime_type().path(&path).guess();
-
-        let mime = mime_to_option(guess.mime_type().clone())
-            .ok_or_else(|| Error::Ambiguous(path.to_owned()))?;
-
-        Ok(Self(mime))
     }
 }
 
