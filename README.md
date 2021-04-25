@@ -56,7 +56,9 @@ handlr launch x-scheme-handler/https -- https://google.ca
 
 Unfortunately, there isn't an XDG spec and thus a standardized way for `handlr` to get your default terminal emulator to run `Terminal=true` desktop entries. There was a proposal floating around a few years ago to use `x-scheme-handler/terminal` for this purpose. It seems to me the least worst option, compared to handling quirks of N+1 distros or using a handlr-specific config option. 
 
-Because most users will not have this handler set up, `handlr` will:
+Now if `x-scheme-handler/terminal` is present, `handlr` will use it. 
+
+Otherwise, `handlr` will:
 1. Find an app with `TerminalEmulator` category
 2. Set it as the default for `x-scheme-handler/terminal`
 3. Send you a notification to let you know it guessed your terminal and provide instructions to change it if necessary
