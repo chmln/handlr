@@ -9,3 +9,4 @@ Name=cmus-remote
 Comment=Music player cmus-remote control
 NoDisplay=true
 Icon=cmus
+MimeType=audio/mp3;audio/ogg;

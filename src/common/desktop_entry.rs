@@ -148,7 +148,9 @@ mod tests {
 
     #[test]
     fn complex_exec() {
-        let path = PathBuf::from("tests/cmus.desktop");
-        parse_file(&*path).unwrap();
+        let entry = parse_file(Path::new("tests/cmus.desktop")).unwrap();
+        assert_eq!(entry.mimes.len(), 2);
+        assert_eq!(entry.mimes[0].essence_str(), "audio/mp3");
+        assert_eq!(entry.mimes[1].essence_str(), "audio/ogg");
     }
 }
