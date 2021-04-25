@@ -107,14 +107,12 @@ fn parse_file(path: &Path) -> Option<DesktopEntry> {
             }
             "Exec" => entry.exec = attr.value.unwrap().into(),
             "MimeType" => {
-                let mut mimes = attr
+                entry.mimes = attr
                     .value
                     .unwrap()
                     .split(";")
                     .filter_map(|m| Mime::from_str(m).ok())
                     .collect::<Vec<_>>();
-                mimes.pop();
-                entry.mimes = mimes;
             }
             "Terminal" => entry.terminal = attr.value.unwrap() == "true",
             "Categories" => {
