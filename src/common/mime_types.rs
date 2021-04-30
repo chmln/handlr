@@ -92,14 +92,20 @@ mod tests {
 
     #[test]
     fn from_path() -> Result<()> {
-        assert_eq!(MimeType::try_from(".")?.0.essence_str(), "inode/directory");
-        assert_eq!(MimeType::try_from("./tests/rust.vim")?.0, "text/plain");
         assert_eq!(
-            MimeType::try_from("./tests/cat")?.0,
+            MimeType::try_from(Path::new("."))?.0.essence_str(),
+            "inode/directory"
+        );
+        assert_eq!(
+            MimeType::try_from(Path::new("./tests/rust.vim"))?.0,
+            "text/plain"
+        );
+        assert_eq!(
+            MimeType::try_from(Path::new("./tests/cat"))?.0,
             "application/x-shellscript"
         );
         assert_eq!(
-            MimeType::try_from("./tests/SettingsWidgetFdoSecrets.ui")?.0,
+            MimeType::try_from(Path::new("./tests/SettingsWidgetFdoSecrets.ui"))?.0,
             "application/x-designer"
         );
 
