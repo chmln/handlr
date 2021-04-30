@@ -23,7 +23,7 @@ mime-db = "1.3.0"
 atty = "0.2.14"
 confy = "0.4.0"
 serde = { version = "1.0.125", features = ["derive"] }
-xdg-mime = "0.3.2"
+xdg-mime = "0.3.3"
 freedesktop_entry_parser = "1.1.1"
 once_cell = "1.7.2"
 aho-corasick = "0.7.15"
