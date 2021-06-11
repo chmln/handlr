@@ -1,3 +1,6 @@
+use crate::common::atomic_save::{
+    AtomicFile, AtomicSaveError, Durability, OverwriteBehavior,
+};
 use crate::{apps::SystemApps, common::Handler, Error, Result, CONFIG};
 use mime::Mime;
 use once_cell::sync::Lazy;
@@ -179,31 +182,37 @@ impl MimeApps {
         use itertools::Itertools;
         use std::io::{prelude::*, BufWriter};
 
-        let f = std::fs::OpenOptions::new()
-            .read(true)
-            .create(true)
-            .write(true)
-            .truncate(true)
-            .open(Self::path()?)?;
-        let mut writer = BufWriter::new(f);
+        let af = AtomicFile::new(
+            &Self::path()?,
+            OverwriteBehavior::AllowOverwrite,
+            Durability::DontSyncDir,
+        );
+        af.write(|f| -> Result<()> {
+            let mut writer = BufWriter::new(f);
 
-        writer.write_all(b"[Added Associations]\n")?;
-        for (k, v) in self.added_associations.iter().sorted() {
-            writer.write_all(k.essence_str().as_ref())?;
-            writer.write_all(b"=")?;
-            writer.write_all(v.iter().join(";").as_ref())?;
-            writer.write_all(b";\n")?;
-        }
+            writer.write_all(b"[Added Associations]\n")?;
+            for (k, v) in self.added_associations.iter().sorted() {
+                writer.write_all(k.essence_str().as_ref())?;
+                writer.write_all(b"=")?;
+                writer.write_all(v.iter().join(";").as_ref())?;
+                writer.write_all(b";\n")?;
+            }
 
-        writer.write_all(b"\n[Default Applications]\n")?;
-        for (k, v) in self.default_apps.iter().sorted() {
-            writer.write_all(k.essence_str().as_ref())?;
-            writer.write_all(b"=")?;
-            writer.write_all(v.iter().join(";").as_ref())?;
-            writer.write_all(b";\n")?;
-        }
+            writer.write_all(b"\n[Default Applications]\n")?;
+            for (k, v) in self.default_apps.iter().sorted() {
+                writer.write_all(k.essence_str().as_ref())?;
+                writer.write_all(b"=")?;
+                writer.write_all(v.iter().join(";").as_ref())?;
+                writer.write_all(b";\n")?;
+            }
 
-        writer.flush()?;
+            writer.flush()?;
+            Ok(())
+        })
+        .map_err(|e| match e {
+            AtomicSaveError::Internal(e) => Error::Io(e),
+            AtomicSaveError::User(e) => e,
+        })?;
         Ok(())
     }
     pub fn print(&self, detailed: bool) -> Result<()> {

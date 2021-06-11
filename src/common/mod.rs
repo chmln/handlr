@@ -1,3 +1,4 @@
+pub mod atomic_save;
 mod db;
 mod desktop_entry;
 mod handler;
