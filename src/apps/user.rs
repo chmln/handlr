@@ -113,9 +113,10 @@ impl MimeApps {
     pub fn read() -> Result<Self> {
         let raw_conf = {
             let mut buf = String::new();
+            let exists = std::path::Path::new(&Self::path()?).exists();
             std::fs::OpenOptions::new()
-                .write(true)
-                .create(true)
+                .write(!exists)
+                .create(!exists)
                 .read(true)
                 .open(Self::path()?)?
                 .read_to_string(&mut buf)?;
