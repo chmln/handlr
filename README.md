@@ -48,7 +48,7 @@ handlr launch x-scheme-handler/https -- https://google.ca
 - Far easier to use with simple commands like `get`, `set`, `list`
 - Can operate on extensions, **no need to look up or remember mime types**
   - useful for common tasks like setting a handler for png/docx/etc files
-- Superb autocomplete (currently just fish), including mimes, extensions, and `.desktop` files
+- Superb autocomplete (currently fish, zsh and bash), including mimes, extensions, and `.desktop` files
 - Optional json output for scripting
 - Properly supports `Terminal=true` entries
 
@@ -109,7 +109,7 @@ cargo install handlr
 ### Binaries
 
 1. Download the latest [release binary](https://github.com/chmln/handlr/releases) and put it somewhere in `$PATH`
-2. Download completions:
+2. Download completions for fish:
 ```sh
 curl https://raw.githubusercontent.com/chmln/handlr/master/completions/handlr.fish --create-dirs -o ~/.config/fish/completions/handlr.fish
 ```

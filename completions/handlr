@@ -1,0 +1,34 @@
+_handlr()
+{
+    local cur prev words cword
+    _init_completion || return
+
+    if ((cword == 1)); then
+        COMPREPLY=($(compgen -W 'get help launch list open set unset' -- "$cur"))
+    else
+        case ${words[1]} in
+            set | add)
+                if ((cword == 2)); then
+                    COMPREPLY=($(compgen -W '$(handlr autocomplete -m)' -- "$cur"))
+                elif ((cword == 3)); then
+                    COMPREPLY=($(compgen -W '$(handlr autocomplete -d | cut -f1)' -- "$cur"))
+                fi
+                ;;
+            open)
+                _filedir
+                ;;
+            unset | get)
+                COMPREPLY=($(compgen -W '$(handlr autocomplete -m)' -- "$cur"))
+                ;;
+            launch)
+                if ((cword == 2)); then
+                    COMPREPLY=($(compgen -W '$(handlr autocomplete -m)' -- "$cur"))
+                else
+                    _filedir
+                fi
+                ;;
+        esac
+    fi
+}
+
+complete -F _handlr handlr
