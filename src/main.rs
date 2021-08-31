@@ -1,6 +1,11 @@
 use config::CONFIG;
 use error::{Error, Result};
 use once_cell::sync::Lazy;
+use std::{
+    ffi::OsStr,
+    ffi::OsString,
+    path::Path,
+};
 
 mod apps;
 mod cli;
@@ -20,8 +25,18 @@ fn main() -> Result<()> {
 
     let mut apps = (*apps::APPS).clone();
 
+    let mut args = std::env::args_os().collect::<Vec<OsString>>();
+    let cmd_name = Path::new(&args[0]).file_stem();
+
+    // If the program is invoked with name `xdg-open` (via symlink xdg-open -> handlr),
+    // rewrite arguments to `handlr open ...`.
+    if cmd_name == Some(OsStr::new("xdg-open")) {
+        args[0] = clap::crate_name!().into();  // fix program name in help message
+        args.insert(1, "open".into());
+    }
+
     let res = || -> Result<()> {
-        match Cmd::parse() {
+        match Cmd::parse_from(args) {
             Cmd::Set { mime, handler } => {
                 apps.set_handler(mime.0, handler);
                 apps.save()?;
