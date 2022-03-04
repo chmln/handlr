@@ -1,3 +1,4 @@
+use crate::apps::{RegexHandler, REGEX_APPS};
 use config::CONFIG;
 use error::{Error, Result};
 use once_cell::sync::Lazy;
@@ -10,7 +11,7 @@ mod error;
 mod utils;
 
 fn main() -> Result<()> {
-    use clap::Clap;
+    use clap::Parser;
     use cli::Cmd;
     use common::Handler;
     use std::collections::HashMap;
@@ -31,7 +32,9 @@ fn main() -> Result<()> {
                 apps.save()?;
             }
             Cmd::Launch { mime, args } => {
-                apps.get_handler(&mime.0)?.launch(args.into_iter().map(|a| a.to_string()).collect())?;
+                apps.get_handler(&mime.0)?.launch(
+                    args.into_iter().map(|a| a.to_string()).collect(),
+                )?;
             }
             Cmd::Get { mime, json } => {
                 apps.show_handler(&mime.0, json)?;
@@ -40,15 +43,28 @@ fn main() -> Result<()> {
                 let mut handlers: HashMap<Handler, Vec<String>> =
                     HashMap::new();
 
+                let mut regex_handlers: HashMap<RegexHandler, Vec<String>> =
+                    HashMap::new();
+
                 for path in paths.into_iter() {
-                    handlers
-                        .entry(apps.get_handler(&path.get_mime()?.0)?)
-                        .or_default()
-                        .push(path.to_string());
+                    if let Some(handler) = REGEX_APPS.get_handler(&path) {
+                        regex_handlers
+                            .entry(handler)
+                            .or_default()
+                            .push(path.to_string())
+                    } else {
+                        handlers
+                            .entry(apps.get_handler(&path.get_mime()?.0)?)
+                            .or_default()
+                            .push(path.to_string());
+                    }
                 }
 
                 for (handler, paths) in handlers.into_iter() {
                     handler.open(paths)?;
+                }
+                for (regex_handler, paths) in regex_handlers.into_iter() {
+                    regex_handler.open(paths)?;
                 }
             }
             Cmd::List { all } => {

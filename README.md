@@ -5,6 +5,7 @@ Manage your default applications with ease using `handlr`!
 ## Features
 
 - Set default handler by extension or mime-type
+- Set arbitrary commands as handlers based on regular expressions
 - Intelligent mime type detection from files based on extension and content
 - Open multiple files at once
 - Set multiple handlers for mime/extension and use `rofi`/`dmenu` to pick one
@@ -77,6 +78,22 @@ handlr add x-scheme-handler/https firefox-developer-edition.desktop
 3) Now in this example when you open a URL, you will be prompted to select the desired application.
 
 ![](https://user-images.githubusercontent.com/11352152/85187445-c4bb2580-b26d-11ea-80a6-679e494ab062.png)
+
+## Setting regex handlers
+
+Inspired by a similar feature in [mimeo](https://xyne.dev/projects/mimeo/)
+
+Open `~/.config/handlr/handlr.toml` and add something like this:
+```
+[[handlers]]
+exec = "freetube %u" # Uses desktop entry field codes
+terminal = false # Set to true for terminal apps, false for GUI apps (optional; defaults to false)
+regexes = ['(https://)?(www\.)?youtu(be\.com|\.be)/*.'] # Use single-quote literal strings
+```
+
+For more information:
+* [desktop entry field codes](https://specifications.freedesktop.org/desktop-entry-spec/desktop-entry-spec-latest.html#exec-variables)
+* [regex reference](https://docs.rs/regex/latest/regex/#syntax)
 
 ## Screenshots
 
