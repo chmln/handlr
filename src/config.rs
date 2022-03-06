@@ -1,4 +1,8 @@
-use crate::{apps::SystemApps, common::Handler, Error, Result};
+use crate::{
+    apps::{ConfigHandler, SystemApps},
+    common::Handler,
+    Error, Result,
+};
 use mime::Mime;
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
@@ -11,6 +15,8 @@ pub static CONFIG: Lazy<Config> = Lazy::new(Config::load);
 pub struct Config {
     pub enable_selector: bool,
     pub selector: String,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub handlers: Vec<ConfigHandler>,
 }
 
 impl Default for Config {
@@ -18,6 +24,7 @@ impl Default for Config {
         Config {
             enable_selector: false,
             selector: "rofi -dmenu -i -p 'Open With: '".into(),
+            handlers: Vec::new(),
         }
     }
 }
