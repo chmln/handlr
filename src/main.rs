@@ -1,3 +1,5 @@
+use std::io::Write;
+
 use config::CONFIG;
 use error::{Error, Result};
 use once_cell::sync::Lazy;
@@ -49,6 +51,28 @@ fn main() -> Result<()> {
 
                 for (handler, paths) in handlers.into_iter() {
                     handler.open(paths)?;
+                }
+            }
+            Cmd::Show { paths } => {
+                let mut handlers: HashMap<Handler, Vec<String>> =
+                    HashMap::new();
+
+                for path in paths.into_iter() {
+                    handlers
+                        .entry(apps.get_handler(&path.get_mime()?.0)?)
+                        .or_default()
+                        .push(path.to_string());
+                }
+
+                for (handler, paths) in handlers.into_iter() {
+                    let stdout = std::io::stdout();
+                    let (cmd, cmd_args) = handler.get_entry()?.get_cmd(paths)?;
+                    write!(&stdout, "{}", cmd)?;
+                    for arg in cmd_args.into_iter() {
+                        write!(&stdout, " {}", arg)?;
+                    }
+                    write!(&stdout, "\n")?
+
                 }
             }
             Cmd::List { all } => {

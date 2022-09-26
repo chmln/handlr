@@ -17,6 +17,12 @@ pub enum Cmd {
         paths: Vec<UserPath>,
     },
 
+    /// Show command to be executed by "open" command
+    Show {
+        #[clap(required = true)]
+        paths: Vec<UserPath>,
+    },
+
     /// Set the default handler for mime/extension
     Set {
         mime: MimeOrExtension,
