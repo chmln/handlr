@@ -91,13 +91,13 @@ handlr add x-scheme-handler/https firefox-developer-edition.desktop
 ### Arch Linux
 
 ```sh
-yay -S handlr-bin
+sudo pacman -S handlr
 ```
 
 Optionally you can also install `xdg-utils-handlr` to replace `xdg-open`:
 
 ```sh
-yay -S xdg-utils-handlr
+paru -S xdg-utils-handlr
 ```
 
 ### Rust/Cargo
